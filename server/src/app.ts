@@ -12,6 +12,7 @@ import authRoutes from './routes/auth';
 import resumeRoutes from './routes/resume';
 import analysisRoutes from './routes/analysis';
 import exportRoutes from './routes/export';
+import aiRoutes from './routes/ai';
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
