@@ -10,29 +10,129 @@
 
 ### **1. Personal Information & Links**
 
-#### Q1.1 - Additional Links Button Visibility
-**Decision**: PENDING - Need to decide:
-- Visible by default, OR
-- Hidden initially (appears after user interaction)
+#### ✅ Q1.1 - Additional Links Button Visibility
+**Decision**: **CONFIRMED - Option A: Visible by default**
 
-**Recommendation**: **Visible by default** (simpler UX, no hidden features)
+**Implementation**:
+```tsx
+<div className="space-y-4">
+  {/* Default links - always shown */}
+  <div>
+    <label>LinkedIn Profile</label>
+    <input type="url" value={data.linkedinUrl || ''} ... />
+  </div>
 
-#### Q1.2 - Link Limits
-**Decision**: PENDING - Clarify total links
+  <div>
+    <label>Portfolio/Website</label>
+    <input type="url" value={data.portfolioUrl || ''} ... />
+  </div>
 
-**Recommendation**:
-- LinkedIn (optional) + Portfolio (optional) = 2 default slots
+  {/* Additional links */}
+  {data.additionalLinks?.map((link, index) => (
+    <div key={link.id} className="flex gap-2">
+      <select value={link.label}>
+        <option value="GitHub">GitHub</option>
+        <option value="Behance">Behance</option>
+        <option value="Medium">Medium</option>
+        <option value="Dribbble">Dribbble</option>
+        <option value="YouTube">YouTube</option>
+        <option value="Custom">Custom</option>
+      </select>
+      <input type="url" value={link.url} ... />
+      <button onClick={() => removeLink(link.id)}>×</button>
+    </div>
+  ))}
+
+  {/* Always visible add button */}
+  {(!data.additionalLinks || data.additionalLinks.length < 3) && (
+    <button
+      type="button"
+      onClick={addAdditionalLink}
+      className="text-sm text-blue-600 hover:text-blue-700"
+    >
+      + Add Another Link
+    </button>
+  )}
+</div>
+```
+
+**Rationale**: Simpler UX, no hidden features, encourages users to add links
+
+#### ✅ Q1.2 - Link Limits
+**Decision**: **CONFIRMED - Max 5 links total**
+
+**Breakdown**:
+- LinkedIn (optional) - default slot
+- Portfolio (optional) - default slot
 - Up to 3 additional custom links
 - **Total: Max 5 links**
 
-#### Q1.3 - Custom Link Labels
-**Decision**: PENDING
+**Validation**:
+```typescript
+const MAX_ADDITIONAL_LINKS = 3;
 
-**Recommendation**:
-- "Custom" dropdown option allows user to type their own label
+const addAdditionalLink = () => {
+  if (!data.additionalLinks) {
+    onChange({
+      ...data,
+      additionalLinks: [{ id: nanoid(), label: 'GitHub', url: '' }]
+    });
+  } else if (data.additionalLinks.length < MAX_ADDITIONAL_LINKS) {
+    onChange({
+      ...data,
+      additionalLinks: [
+        ...data.additionalLinks,
+        { id: nanoid(), label: 'GitHub', url: '' }
+      ]
+    });
+  }
+};
+```
+
+#### ✅ Q1.3 - Custom Link Labels
+**Decision**: **CONFIRMED - Allow custom labels with validation**
+
+**Implementation**:
+```tsx
+{link.label === 'Custom' ? (
+  <input
+    type="text"
+    value={link.customLabel || ''}
+    onChange={(e) => updateLink(link.id, 'customLabel', e.target.value)}
+    placeholder="e.g., Twitter, Blog"
+    maxLength={20}
+    className="..."
+  />
+) : (
+  <select
+    value={link.label}
+    onChange={(e) => updateLink(link.id, 'label', e.target.value)}
+  >
+    <option value="GitHub">GitHub</option>
+    <option value="Behance">Behance</option>
+    <option value="Medium">Medium</option>
+    <option value="Dribbble">Dribbble</option>
+    <option value="YouTube">YouTube</option>
+    <option value="Custom">Custom</option>
+  </select>
+)}
+```
+
+**Validation**:
 - Max length: 20 characters
-- Allowed characters: Letters, numbers, spaces, hyphens only
-- Sanitize on save
+- Allowed: Letters, numbers, spaces, hyphens
+- Pattern: `/^[a-zA-Z0-9 -]+$/`
+- Sanitize on save: trim whitespace, title case
+
+**Type definition**:
+```typescript
+interface AdditionalLink {
+  id: string;
+  label: 'GitHub' | 'Behance' | 'Medium' | 'Dribbble' | 'YouTube' | 'Custom';
+  customLabel?: string; // Only if label === 'Custom'
+  url: string;
+}
+```
 
 ---
 
@@ -186,28 +286,77 @@ const handleTemplateChange = (newTemplateId: 'ats' | 'simple') => {
 
 ---
 
-#### ✅ Q4.3 - Template Persistence
-**Your Answer**: "User can only save the final output"
+#### ✅ Q4.3 - Draft Save Feature
+**Your Answer**: "Option B - Draft save exists"
 
-**⚠️ CLARIFICATION NEEDED**: This question was about template persistence across sessions. Your answer suggests no draft save feature, but the spec explicitly includes "Save Draft" button.
+**Decision**: **CONFIRMED - Include draft save feature**
 
-**Two interpretations:**
+**Features**:
+1. ✅ **"Save Draft" button** in header (always visible)
+2. ✅ **Manual save** - no auto-save
+3. ✅ **Save at any step** - don't need to complete all steps
+4. ✅ **Persist template choice** - template saved with draft
+5. ✅ **Warn on exit** - if unsaved changes exist
+6. ⚠️ **Export requires completion** - validate before PDF/Markdown export
 
-**Option A** - No draft save feature at all:
-- Remove "Save Draft" button from spec
-- User must complete all 7 steps to save
-- Template choice lost if browser closes
+**Implementation**:
+```typescript
+// Save draft endpoint
+POST /api/resume/draft/save
+Body: {
+  resumeId?: string,  // undefined for new, UUID for existing
+  formData: ResumeFormData,
+  templateId: 'ats' | 'simple',
+  currentStep: number
+}
+Response: {
+  resumeId: string,
+  message: 'Draft saved successfully',
+  lastSaved: Date
+}
 
-**Option B** - Draft save exists, but export requires completion:
-- "Save Draft" button saves progress + template choice
-- User can reload and continue editing
-- "Export PDF" only works on complete resumes
+// Database update
+UPDATE resumes
+SET
+  status = 'draft',
+  template_id = $1,
+  updated_at = NOW()
+WHERE id = $2;
 
-**Which do you mean?** (Assuming **Option B** for now)
+UPDATE resume_data
+SET
+  form_data = $1,
+  current_step = $2
+WHERE resume_id = $3;
+```
 
-**Decision (assuming Option B)**:
-- Save draft at any time (saves template choice)
-- Export requires completion
+**UI States**:
+```typescript
+const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+const handleSaveDraft = async () => {
+  setSaveStatus('saving');
+
+  try {
+    await saveDraftAPI(resumeId, formData, templateId, currentStep);
+    setSaveStatus('saved');
+    setHasUnsavedChanges(false);
+
+    // Reset to idle after 3 seconds
+    setTimeout(() => setSaveStatus('idle'), 3000);
+  } catch (err) {
+    setSaveStatus('error');
+  }
+};
+
+// Button label changes
+{saveStatus === 'idle' && 'Save Draft'}
+{saveStatus === 'saving' && 'Saving...'}
+{saveStatus === 'saved' && '✓ Saved'}
+{saveStatus === 'error' && '⚠ Save Failed'}
+```
+
+**Rationale**: Essential UX feature for long forms, prevents data loss
 
 ---
 
@@ -825,27 +974,38 @@ async function saveDraft(resumeId: string, formData: ResumeFormData) {
 
 ## 📊 **Summary of Decisions**
 
-### ✅ **Finalized (28 decisions)**
-- Professional Summary location and flow
-- Summary generation behavior (AI-assisted)
-- Template selection and switching
-- Mobile UI organization
-- Navigation validation rules
-- AI caching strategy (PostgreSQL)
-- Testing strategy (no E2E, focused coverage)
-- Database status tracking
-- Error handling approach
+### ✅ **ALL DECISIONS FINALIZED (32 total)**
 
-### ⚠️ **Needs Clarification (2 items)**
-1. **Q4.3** - Draft save feature: Include or exclude?
-2. **Q1.1-Q1.3** - Additional links UI details
+**Core Features**:
+- ✅ Draft save system (manual, warn on exit)
+- ✅ Additional links (5 max, always visible button)
+- ✅ Professional Summary (Step 6, AI-assisted)
+- ✅ Skills auto-generation (AI pre-population)
+- ✅ Template system (select before form, instant switching)
+- ✅ Two-panel live preview (40/60 split, mobile tabs)
 
-### 🔄 **Recommended Next Steps**
-1. Confirm Q4.3 clarification (draft save feature)
-2. Finalize additional links UI decisions
-3. Create database migration for status column
-4. Begin Phase 1 implementation (Template System)
+**Technical Decisions**:
+- ✅ 7 steps total (Personal merged, Summary extracted)
+- ✅ Navigation (block Next if invalid, allow tab jumping)
+- ✅ Mobile UI (template + export in hamburger menu)
+- ✅ AI caching (PostgreSQL with 30-day expiration)
+- ✅ Testing (100% critical paths, no E2E, section snapshots)
+- ✅ Database (status column, live_preview flag)
+- ✅ Error handling (graceful degradation for AI failures)
+
+**Data Structures**:
+- ✅ Nested skills (categorized technical skills)
+- ✅ Additional links (array with label + URL)
+- ✅ Template persistence (saved with draft)
+
+### 🎯 **Ready to Start Implementation!**
+
+**Next Actions**:
+1. ✅ Update DECISIONS.md with final confirmations
+2. ⬜ Create database migration (status column + template_id)
+3. ⬜ Update TypeScript types (skills structure, additional links)
+4. ⬜ Begin Phase 1 - Template System
 
 ---
 
-**Ready to proceed once clarifications are confirmed!** 🚀
+**All blockers cleared - ready to code! 🚀**
