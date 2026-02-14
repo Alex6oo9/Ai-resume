@@ -26,38 +26,42 @@ export interface AiAnalysis {
 }
 
 export interface ResumeFormData {
-  // Step 1: Basic Information
+  // Step 1: Personal Information (merged Basic + Target Role)
   fullName: string;
   email: string;
   phone: string;
-  linkedinUrl?: string;
-  portfolioUrl?: string;
   city: string;
   country: string;
-
-  // Step 2: Target Role
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  additionalLinks?: AdditionalLink[]; // NEW: Up to 3 custom links
   targetRole: string;
   targetCountry: string;
   targetCity?: string;
+  targetIndustry: string; // NEW: Industry dropdown
 
-  // Step 3: Education
+  // Step 2: Education
   education: Education[];
 
-  // Step 4: Experience
+  // Step 3: Experience
   experience: Experience[];
 
-  // Step 5: Projects
+  // Step 4: Projects
   projects: Project[];
 
-  // Step 6: Skills
-  technicalSkills: string;
-  softSkills: string[];
-  languages: Language[];
+  // Step 5: Skills (NEW: Nested structure for AI pre-population)
+  skills: {
+    technical: TechnicalSkillCategory[]; // Categorized skills
+    soft: string[]; // Array of soft skills
+    languages: LanguageSkill[]; // Renamed from 'languages'
+  };
 
-  // Step 7: Additional
+  // Step 6: Professional Summary (moved from Additional)
+  professionalSummary: string;
+
+  // Step 7: Additional Information
   certifications?: string;
   extracurriculars?: string;
-  professionalSummary: string;
 }
 
 export interface Education {
@@ -71,11 +75,12 @@ export interface Education {
 }
 
 export interface Experience {
-  type: 'internship' | 'part-time' | 'volunteer';
+  type: 'internship' | 'part-time' | 'full-time' | 'freelance' | 'volunteer'; // Added full-time, freelance
   company: string;
   role: string;
   duration: string;
   responsibilities: string;
+  industry?: string; // NEW: Optional industry field
 }
 
 export interface Project {
@@ -89,6 +94,37 @@ export interface Project {
 export interface Language {
   name: string;
   proficiency: 'native' | 'fluent' | 'intermediate' | 'basic';
+}
+
+// NEW: Additional links for Personal Information step
+export interface AdditionalLink {
+  id: string;
+  label: 'GitHub' | 'Behance' | 'Medium' | 'Dribbble' | 'YouTube' | 'Custom';
+  customLabel?: string; // Only used if label === 'Custom'
+  url: string;
+}
+
+// NEW: Technical skill category (for AI pre-population)
+export interface TechnicalSkillCategory {
+  category: string; // e.g., "Programming Languages", "Data Analysis"
+  items: string[]; // e.g., ["Python", "JavaScript", "SQL"]
+}
+
+// NEW: Language skill with proficiency (renamed from Language for clarity)
+export interface LanguageSkill {
+  language: string; // e.g., "English"
+  proficiency: 'native' | 'fluent' | 'professional' | 'intermediate' | 'basic';
+}
+
+// Template types (for live preview)
+export type TemplateId = 'ats' | 'simple';
+
+export interface Template {
+  id: TemplateId;
+  name: string;
+  description: string;
+  thumbnail: string;
+  isPremium: boolean;
 }
 
 export interface AtsScoreBreakdown {

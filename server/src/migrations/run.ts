@@ -8,12 +8,14 @@ import { up as createUsers } from './001_create_users';
 import { up as createSessions } from './002_create_sessions';
 import { up as createResumes } from './003_create_resumes';
 import { up as createResumeData } from './004_create_resume_data';
+import { up as addLivePreviewColumns } from './005_add_live_preview_columns';
 
 const migrations = [
   { name: '001_create_users', up: createUsers },
   { name: '002_create_sessions', up: createSessions },
   { name: '003_create_resumes', up: createResumes },
   { name: '004_create_resume_data', up: createResumeData },
+  { name: '005_add_live_preview_columns', up: addLivePreviewColumns },
 ];
 
 async function runMigrations(): Promise<void> {
