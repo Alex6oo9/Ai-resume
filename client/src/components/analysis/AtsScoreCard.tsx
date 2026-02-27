@@ -6,21 +6,62 @@ interface AtsScoreCardProps {
   onCalculate: () => void;
 }
 
-function ProgressBar({ value, max, label }: { value: number; max: number; label: string }) {
-  const pct = Math.round((value / max) * 100);
+function ScoreDonut({ score }: { score: number }) {
+  const r = 54;
+  const cx = 64;
+  const cy = 64;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - score / 100);
+  const color = score >= 80 ? '#16a34a' : score >= 60 ? '#ca8a04' : '#dc2626';
+
   return (
-    <div className="mb-3">
-      <div className="mb-1 flex justify-between text-sm">
-        <span className="text-gray-600">{label}</span>
-        <span className="font-medium text-gray-900">{value}/{max}</span>
-      </div>
-      <div className="h-2 w-full rounded-full bg-gray-200">
-        <div
-          className="h-2 rounded-full bg-indigo-600"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
+    <svg width="128" height="128" viewBox="0 0 128 128" aria-label={`ATS score: ${score} out of 100`}>
+      {/* Background track */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke="#e5e7eb"
+        strokeWidth="12"
+      />
+      {/* Foreground arc */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth="12"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform="rotate(-90 64 64)"
+        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+      />
+      {/* Center text */}
+      <text
+        x={cx}
+        y={cy - 4}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize="22"
+        fontWeight="700"
+        fill={color}
+      >
+        {score}
+      </text>
+      <text
+        x={cx}
+        y={cy + 16}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize="11"
+        fill="#6b7280"
+      >
+        /100
+      </text>
+    </svg>
   );
 }
 
@@ -36,7 +77,7 @@ export default function AtsScoreCard({
         className="animate-pulse rounded-lg border border-gray-200 bg-white p-6"
       >
         <div className="mb-4 h-6 w-36 rounded bg-gray-200" />
-        <div className="mb-4 h-16 w-20 rounded bg-gray-200" />
+        <div className="mb-4 h-32 w-32 rounded-full bg-gray-200 mx-auto" />
         <div className="space-y-3">
           <div className="h-4 w-full rounded bg-gray-200" />
           <div className="h-4 w-full rounded bg-gray-200" />
@@ -65,35 +106,31 @@ export default function AtsScoreCard({
     );
   }
 
+  const subScores = [
+    { label: 'Format Compliance', value: atsBreakdown.formatCompliance, max: 40 },
+    { label: 'Keyword Match', value: atsBreakdown.keywordMatch, max: 40 },
+    { label: 'Section Completeness', value: atsBreakdown.sectionCompleteness, max: 20 },
+  ];
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="mb-4 text-lg font-semibold text-gray-900">
         ATS Compatibility
       </h2>
 
-      <div className="mb-6 inline-flex items-center rounded-lg bg-indigo-50 px-4 py-3">
-        <span className="text-4xl font-bold text-indigo-600">
-          {atsBreakdown.totalScore}
-        </span>
-        <span className="ml-1 text-sm text-indigo-500">/100</span>
+      <div className="mb-6 flex justify-center">
+        <ScoreDonut score={atsBreakdown.totalScore} />
       </div>
 
-      <div className="mb-6">
-        <ProgressBar
-          value={atsBreakdown.formatCompliance}
-          max={40}
-          label="Format Compliance"
-        />
-        <ProgressBar
-          value={atsBreakdown.keywordMatch}
-          max={40}
-          label="Keyword Match"
-        />
-        <ProgressBar
-          value={atsBreakdown.sectionCompleteness}
-          max={20}
-          label="Section Completeness"
-        />
+      <div className="mb-6 space-y-2">
+        {subScores.map(({ label, value, max }) => (
+          <div key={label} className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">{label}</span>
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+              {value}/{max}
+            </span>
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

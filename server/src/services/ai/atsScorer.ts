@@ -1,8 +1,10 @@
 import openai from '../../config/openai';
+import { sanitizePromptInput } from '../../utils/sanitizePromptInput';
 
 export interface AtsScoreInput {
   resumeText: string;
   targetRole: string;
+  jobDescription?: string;
 }
 
 export interface AtsScoreBreakdown {
@@ -19,7 +21,7 @@ export interface AtsScoreBreakdown {
 export async function calculateAtsScore(
   input: AtsScoreInput
 ): Promise<AtsScoreBreakdown> {
-  const { resumeText, targetRole } = input;
+  const { resumeText, targetRole, jobDescription } = input;
 
   if (!resumeText?.trim()) {
     throw new Error('Resume text is required');
@@ -27,6 +29,13 @@ export async function calculateAtsScore(
   if (!targetRole?.trim()) {
     throw new Error('Target role is required');
   }
+
+  const sanitizedText = sanitizePromptInput(resumeText);
+  const sanitizedJd = jobDescription ? sanitizePromptInput(jobDescription) : undefined;
+
+  const keywordInstruction = sanitizedJd
+    ? `\nJob Description:\n${sanitizedJd}\n\nFor keywordMatch: score based on actual JD keywords present vs missing in the resume. List exact terms from the JD in matched/missing arrays.`
+    : '(Use typical industry keywords for this role)';
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -57,8 +66,8 @@ Scoring criteria:
         content: `Analyze this resume for ATS compatibility for a "${targetRole}" position.
 
 Resume:
-${resumeText}
-
+${sanitizedText}
+${keywordInstruction}
 Score the resume and identify matched and missing keywords. Respond with ONLY valid JSON.`,
       },
     ],

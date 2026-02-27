@@ -13,6 +13,7 @@ import ResumeUploadPage from './pages/ResumeUploadPage';
 import ResumeBuilderPage from './pages/ResumeBuilderPage';
 import ResumeAnalysisPage from './pages/ResumeAnalysisPage';
 import NotFoundPage from './pages/NotFoundPage';
+import SkillsDemo from './pages/SkillsDemo';
 
 export default function App() {
   const { user, loading, login, register, logout } = useAuth();
@@ -66,6 +67,14 @@ export default function App() {
               }
             />
             <Route
+              path="/build/:id"
+              element={
+                <ProtectedRoute user={user}>
+                  <ResumeBuilderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/resume/:id"
               element={
                 <ProtectedRoute user={user}>
@@ -73,6 +82,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/demo/skills" element={<SkillsDemo />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </div>

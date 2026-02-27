@@ -12,9 +12,27 @@ const mockResume = {
     id: 'resume-1',
     target_role: 'Frontend Developer',
     target_country: 'United States',
+    target_city: null,
+    job_description: null,
     parsed_text: 'John Doe...',
     match_percentage: 75,
     ats_score: null,
+    template_id: 'modern_minimal',
+    form_data: {
+      fullName: 'John Doe',
+      email: 'john@example.com',
+      phone: '555-0100',
+      city: 'New York',
+      country: 'United States',
+      targetRole: 'Frontend Developer',
+      targetCountry: 'United States',
+      targetIndustry: 'Technology',
+      education: [],
+      experience: [],
+      projects: [],
+      skills: { technical: [], soft: [], languages: [] },
+      professionalSummary: '',
+    },
     ai_analysis: {
       strengths: ['Good React skills'],
       weaknesses: ['No TypeScript'],
@@ -29,6 +47,8 @@ const mockMatchData = {
   weaknesses: ['No TypeScript'],
   suggestions: ['Learn TypeScript'],
 };
+
+const mockTemplates = { templates: [], userTier: 'free' as const };
 
 function renderPage() {
   return render(
@@ -48,6 +68,9 @@ describe('ResumeAnalysisPage', () => {
     (api.getResume as ReturnType<typeof vi.fn>).mockResolvedValue(mockResume);
     (api.getMatchAnalysis as ReturnType<typeof vi.fn>).mockResolvedValue(
       mockMatchData
+    );
+    (api.getTemplates as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockTemplates
     );
   });
 
@@ -139,7 +162,7 @@ describe('ResumeAnalysisPage', () => {
     fireEvent.click(improveButton);
 
     await waitFor(() => {
-      expect(api.getImprovements).toHaveBeenCalledWith('resume-1');
+      expect(api.getImprovements).toHaveBeenCalledWith('resume-1', false);
       expect(screen.getByText('Certifications')).toBeInTheDocument();
     });
   });
@@ -169,8 +192,8 @@ describe('ResumeAnalysisPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('PDF button triggers exportPdf', async () => {
-    (api.exportPdf as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  it('PDF button triggers exportPdfWithTemplate', async () => {
+    (api.exportPdfWithTemplate as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
     renderPage();
 
@@ -181,7 +204,10 @@ describe('ResumeAnalysisPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /download pdf/i }));
 
     await waitFor(() => {
-      expect(api.exportPdf).toHaveBeenCalledWith('resume-1');
+      expect(api.exportPdfWithTemplate).toHaveBeenCalledWith(
+        'modern_minimal',
+        mockResume.resume.form_data
+      );
     });
   });
 

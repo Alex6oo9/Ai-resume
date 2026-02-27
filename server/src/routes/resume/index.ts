@@ -10,9 +10,13 @@ import {
   uploadResume,
   buildResume,
   getResume,
+  getResumeFile,
   deleteResume,
   listResumes,
+  saveDraft,
+  loadDraft,
 } from '../../controllers/resumeController';
+import { switchTemplate } from '../../controllers/templateController';
 
 const router = Router();
 
@@ -28,7 +32,11 @@ router.post(
   uploadResume
 );
 router.post('/build', buildResumeValidators, validate, buildResume);
+router.post('/draft/save', saveDraft);
+router.get('/draft/:id', loadDraft);
+router.get('/:id/file', getResumeFile);
 router.get('/:id', getResume);
 router.delete('/:id', deleteResume);
+router.post('/:id/switch-template', switchTemplate);
 
 export default router;

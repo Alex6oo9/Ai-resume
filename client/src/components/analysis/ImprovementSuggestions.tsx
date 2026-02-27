@@ -61,6 +61,17 @@ export default function ImprovementSuggestions({
       )}
 
       {detailed && (
+        <div className="mb-4">
+          <button
+            onClick={onAnalyze}
+            className="rounded-md border border-indigo-600 px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50"
+          >
+            Regenerate Suggestions
+          </button>
+        </div>
+      )}
+
+      {detailed && (
         <div className="space-y-4">
           {detailed.actionVerbs.length > 0 && (
             <div>

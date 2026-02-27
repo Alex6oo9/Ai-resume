@@ -1,10 +1,12 @@
 import openai from '../../config/openai';
+import { sanitizePromptInput } from '../../utils/sanitizePromptInput';
 
 export interface AnalyzeResumeInput {
   resumeText: string;
   targetRole: string;
   targetCountry: string;
   targetCity?: string;
+  jobDescription?: string;
 }
 
 export interface AiAnalysis {
@@ -21,7 +23,7 @@ export interface AnalyzeResumeResult {
 export async function analyzeResume(
   input: AnalyzeResumeInput
 ): Promise<AnalyzeResumeResult> {
-  const { resumeText, targetRole, targetCountry, targetCity } = input;
+  const { resumeText, targetRole, targetCountry, targetCity, jobDescription } = input;
 
   if (!resumeText?.trim()) {
     throw new Error('Resume text is required');
@@ -33,9 +35,16 @@ export async function analyzeResume(
     throw new Error('Target country is required');
   }
 
+  const sanitizedText = sanitizePromptInput(resumeText);
+  const sanitizedJd = jobDescription ? sanitizePromptInput(jobDescription) : undefined;
+
   const locationStr = targetCity
     ? `${targetCity}, ${targetCountry}`
     : targetCountry;
+
+  const jdSection = sanitizedJd
+    ? `\nJob Description to match against:\n${sanitizedJd}\n\nSpecifically evaluate how well the resume matches THIS job description. Extract keywords from the JD and check for their presence.`
+    : '';
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -58,8 +67,8 @@ You must respond with ONLY valid JSON in this exact format:
         content: `Analyze this resume for a "${targetRole}" position in ${locationStr}.
 
 Resume:
-${resumeText}
-
+${sanitizedText}
+${jdSection}
 Provide:
 1. A match percentage (0-100) for how well this resume fits the target role and location
 2. Key strengths relevant to the role

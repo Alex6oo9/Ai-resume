@@ -4,6 +4,41 @@ import { generatePdf } from '../services/export/pdfGenerator';
 import { generateMarkdown } from '../services/export/markdownGenerator';
 import { buildResumeHtml } from '../services/export/htmlTemplate';
 
+/**
+ * Transform frontend form data to backend expected format
+ * Same as in resumeController.ts - needed for export functionality
+ */
+function transformFormData(formData: any): any {
+  // Handle skills transformation
+  const skills = formData.skills || {};
+
+  // Transform technical skills: array of categories → comma-separated string
+  const technicalSkills = (skills.technical || [])
+    .map((cat: any) => {
+      const categoryName = cat.category || '';
+      const items = (cat.items || []).join(', ');
+      return items ? `${categoryName}: ${items}` : '';
+    })
+    .filter((s: string) => s.trim())
+    .join('; ');
+
+  // Soft skills: already array of strings
+  const softSkills = skills.soft || [];
+
+  // Transform languages: {language, proficiency} → {name, proficiency}
+  const languages = (skills.languages || []).map((lang: any) => ({
+    name: lang.language || '',
+    proficiency: lang.proficiency || 'basic',
+  }));
+
+  return {
+    ...formData,
+    technicalSkills,
+    softSkills,
+    languages,
+  };
+}
+
 async function getResumeData(resumeId: string, userId: string) {
   const resumeResult = await pool.query(
     'SELECT id, user_id, parsed_text, target_role FROM resumes WHERE id = $1 AND user_id = $2',
@@ -53,8 +88,11 @@ export const exportPdf = async (
     const { resume, formData } = data;
 
     console.log('[PDF Export] Building HTML');
+    // Transform formData if it exists (convert frontend format to backend format)
+    const transformedFormData = formData ? transformFormData(formData) : undefined;
+
     const html = buildResumeHtml({
-      formData: formData || undefined,
+      formData: transformedFormData,
       parsedText: resume.parsed_text,
       targetRole: resume.target_role,
     });
@@ -71,6 +109,26 @@ export const exportPdf = async (
     res.send(pdfBuffer);
   } catch (err) {
     console.error('[PDF Export] Error:', err);
+    next(err);
+  }
+};
+
+export const exportPdfFromHtml = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { html } = req.body;
+    if (!html || typeof html !== 'string') {
+      res.status(400).json({ error: 'html is required' });
+      return;
+    }
+    const pdfBuffer = await generatePdf(html, { margins: false });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
     next(err);
   }
 };
@@ -97,8 +155,11 @@ export const exportMarkdown = async (
 
     const { resume, formData } = data;
 
+    // Transform formData if it exists (convert frontend format to backend format)
+    const transformedFormData = formData ? transformFormData(formData) : undefined;
+
     const markdown = generateMarkdown({
-      formData: formData || undefined,
+      formData: transformedFormData,
       parsedText: resume.parsed_text,
       targetRole: resume.target_role,
     });

@@ -7,7 +7,6 @@ const steps = [
   'Target Role',
   'Education',
   'Experience',
-  'Projects',
   'Skills',
   'Additional',
 ];
@@ -44,13 +43,12 @@ describe('StepIndicator', () => {
     const indicators = screen.getAllByTestId(/^step-/);
     expect(indicators[4]).toHaveAttribute('data-status', 'upcoming');
     expect(indicators[5]).toHaveAttribute('data-status', 'upcoming');
-    expect(indicators[6]).toHaveAttribute('data-status', 'upcoming');
   });
 
   it('shows step numbers', () => {
     render(<StepIndicator steps={steps} currentStep={0} />);
 
     expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByText('6')).toBeInTheDocument();
   });
 });

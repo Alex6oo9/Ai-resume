@@ -164,7 +164,7 @@ Respond with ONLY the summary text, no formatting or additional commentary.`;
       },
     ],
     temperature: 0.4, // Slightly higher for more natural language
-    max_tokens: 200, // Limit response length
+    max_tokens: 300, // Limit response length
   });
 
   const content = response.choices[0]?.message?.content;
@@ -177,10 +177,6 @@ Respond with ONLY the summary text, no formatting or additional commentary.`;
   // Validate summary length (should be 2-3 sentences)
   if (summary.length < 50) {
     throw new Error('Generated summary is too short');
-  }
-
-  if (summary.length > 500) {
-    throw new Error('Generated summary is too long');
   }
 
   return summary;

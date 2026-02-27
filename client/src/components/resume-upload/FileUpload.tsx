@@ -15,9 +15,15 @@ export default function FileUpload({
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const handleFile = (selectedFile: File) => {
     if (selectedFile.type !== 'application/pdf') {
       setError('Only PDF files are accepted');
+      return;
+    }
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      setError('File is too large. Maximum size is 10MB.');
       return;
     }
     setError(null);

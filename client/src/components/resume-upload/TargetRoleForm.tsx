@@ -4,6 +4,7 @@ export interface TargetRoleData {
   targetRole: string;
   targetCountry: string;
   targetCity: string;
+  jobDescription?: string;
 }
 
 interface TargetRoleFormProps {
@@ -18,7 +19,11 @@ export default function TargetRoleForm({
   const [targetRole, setTargetRole] = useState('');
   const [targetCountry, setTargetCountry] = useState('');
   const [targetCity, setTargetCity] = useState('');
+  const [showJd, setShowJd] = useState(false);
+  const [jobDescription, setJobDescription] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const JD_MAX_LENGTH = 5000;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -37,7 +42,12 @@ export default function TargetRoleForm({
     }
 
     setErrors({});
-    onSubmit({ targetRole, targetCountry, targetCity });
+    onSubmit({
+      targetRole,
+      targetCountry,
+      targetCity,
+      jobDescription: showJd ? jobDescription : undefined,
+    });
   };
 
   return (
@@ -97,6 +107,47 @@ export default function TargetRoleForm({
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           placeholder="e.g. San Francisco"
         />
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowJd((prev) => !prev)}
+          className="text-sm text-blue-600 hover:underline focus:outline-none"
+        >
+          {showJd
+            ? '− Hide job description'
+            : '+ Add job description for better accuracy'}
+        </button>
+
+        {showJd && (
+          <div className="mt-2">
+            <label
+              htmlFor="jobDescription"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Job Description
+            </label>
+            <textarea
+              id="jobDescription"
+              rows={6}
+              maxLength={JD_MAX_LENGTH}
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Paste the job posting here…"
+            />
+            <p
+              className={`mt-1 text-right text-xs ${
+                jobDescription.length >= JD_MAX_LENGTH
+                  ? 'text-red-600'
+                  : 'text-gray-500'
+              }`}
+            >
+              {jobDescription.length}/{JD_MAX_LENGTH}
+            </p>
+          </div>
+        )}
       </div>
 
       <button

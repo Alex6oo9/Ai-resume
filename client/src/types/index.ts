@@ -35,6 +35,7 @@ export interface ResumeFormData {
   linkedinUrl?: string;
   portfolioUrl?: string;
   additionalLinks?: AdditionalLink[]; // NEW: Up to 3 custom links
+  profilePhoto?: string; // Base64 encoded image, used in photo-supporting templates
   targetRole: string;
   targetCountry: string;
   targetCity?: string;
@@ -96,11 +97,10 @@ export interface Language {
   proficiency: 'native' | 'fluent' | 'intermediate' | 'basic';
 }
 
-// NEW: Additional links for Personal Information step
+// Additional links for Personal Information step
 export interface AdditionalLink {
   id: string;
-  label: 'GitHub' | 'Behance' | 'Medium' | 'Dribbble' | 'YouTube' | 'Custom';
-  customLabel?: string; // Only used if label === 'Custom'
+  label: string; // free text, e.g. "GitHub", "My Blog", "Twitter"
   url: string;
 }
 
@@ -116,16 +116,8 @@ export interface LanguageSkill {
   proficiency: 'native' | 'fluent' | 'professional' | 'intermediate' | 'basic';
 }
 
-// Template types (for live preview)
-export type TemplateId = 'ats' | 'simple';
-
-export interface Template {
-  id: TemplateId;
-  name: string;
-  description: string;
-  thumbnail: string;
-  isPremium: boolean;
-}
+// Re-export canonical TemplateId from templates module
+export type { TemplateId } from '../components/templates/types';
 
 export interface AtsScoreBreakdown {
   formatCompliance: number;

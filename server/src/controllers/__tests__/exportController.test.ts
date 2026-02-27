@@ -81,11 +81,11 @@ describe('GET /api/export/pdf/:resumeId', () => {
       ],
     });
 
-    // resume_data query
+    // resume_data query - JSONB is already parsed by PostgreSQL
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
-          form_data: JSON.stringify({
+          form_data: {
             fullName: 'John Doe',
             email: 'john@example.com',
             phone: '555-0000',
@@ -100,7 +100,7 @@ describe('GET /api/export/pdf/:resumeId', () => {
             softSkills: [],
             languages: [],
             professionalSummary: 'Experienced dev',
-          }),
+          },
         },
       ],
     });

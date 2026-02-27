@@ -1,8 +1,10 @@
 import openai from '../../config/openai';
+import { sanitizePromptInput } from '../../utils/sanitizePromptInput';
 
 export interface ImprovementInput {
   resumeText: string;
   targetRole: string;
+  jobDescription?: string;
 }
 
 export interface DetailedImprovements {
@@ -16,7 +18,7 @@ export interface DetailedImprovements {
 export async function analyzeImprovements(
   input: ImprovementInput
 ): Promise<DetailedImprovements> {
-  const { resumeText, targetRole } = input;
+  const { resumeText, targetRole, jobDescription } = input;
 
   if (!resumeText?.trim()) {
     throw new Error('Resume text is required');
@@ -24,6 +26,13 @@ export async function analyzeImprovements(
   if (!targetRole?.trim()) {
     throw new Error('Target role is required');
   }
+
+  const sanitizedText = sanitizePromptInput(resumeText);
+  const sanitizedJd = jobDescription ? sanitizePromptInput(jobDescription) : undefined;
+
+  const jdSection = sanitizedJd
+    ? `\nJob Description:\n${sanitizedJd}\n\nFor keywordOptimization: cite keywords directly from the job description above, with reason "appears in job description".`
+    : '';
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -45,8 +54,8 @@ You must respond with ONLY valid JSON in this exact format:
         content: `Analyze this resume for a "${targetRole}" position and provide detailed improvement suggestions.
 
 Resume:
-${resumeText}
-
+${sanitizedText}
+${jdSection}
 Provide categorized improvements covering:
 1. Weak action verbs that should be replaced with stronger ones
 2. Opportunities to add quantified achievements

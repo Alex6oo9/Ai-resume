@@ -29,7 +29,7 @@ const CACHE_EXPIRATION_DAYS = 30;
  * @returns Cache key string
  */
 function getCacheKey(targetRole: string, targetIndustry: string): string {
-  return `skills:${targetRole.toLowerCase().trim()}:${targetIndustry.toLowerCase().trim()}`;
+  return `skills_v2:${targetRole.toLowerCase().trim()}:${targetIndustry.toLowerCase().trim()}`;
 }
 
 /**
@@ -94,32 +94,31 @@ async function generateSkillsFromAI(
   targetRole: string,
   targetIndustry: string
 ): Promise<GeneratedSkills> {
-  const prompt = `Generate a comprehensive skills list for a fresh graduate applying for a "${targetRole}" position in the ${targetIndustry} industry.
+  const prompt = `Generate a focused technical skills list for a fresh graduate applying for a "${targetRole}" position in the ${targetIndustry} industry.
 
 Requirements:
-1. Technical Skills: Provide 3-4 categories with 3-5 specific skills each
-   - Categories should be relevant to ${targetRole}
-   - Skills should be tools, technologies, or methodologies
+1. Technical Skills: Provide 2-3 categories with exactly 4-5 highly relevant skills each (max 15 total)
+   - Categories must be specific to ${targetRole}
+   - Skills should be concrete tools, technologies, or methodologies
    - Be specific (e.g., "Python" not "Programming")
+   - Prioritize the most in-demand skills for this role
 
-2. Soft Skills: Provide 8-10 relevant soft skills
-   - Focus on skills valued in ${targetIndustry}
-   - Include mix of interpersonal and professional skills
+2. Soft Skills: Provide 2-3 soft skills that are SPECIFICALLY valued for ${targetRole} in ${targetIndustry}
+   - EXCLUDE these already-covered skills: Communication, Teamwork, Problem Solving, Leadership,
+     Time Management, Adaptability, Critical Thinking, Creativity, Analytical Thinking, Attention to Detail
+   - Only include role-specific soft skills not in the exclusion list above
 
-3. Languages: Suggest 1-2 common languages for this role
-   - Default to English (fluent) for most roles
-   - Add second language if relevant to industry
+3. Languages: Suggest 1 common language for this role (usually English)
 
 Respond with ONLY valid JSON in this exact format:
 {
   "technical": [
-    {"category": "Category Name", "items": ["skill1", "skill2", "skill3"]},
-    {"category": "Another Category", "items": ["skill1", "skill2"]}
+    {"category": "Category Name", "items": ["skill1", "skill2", "skill3", "skill4"]},
+    {"category": "Another Category", "items": ["skill1", "skill2", "skill3"]}
   ],
-  "soft": ["Communication", "Teamwork", "Problem-solving", ...],
+  "soft": ["Role-specific soft skill not in exclusion list"],
   "languages": [
-    {"language": "English", "proficiency": "fluent"},
-    {"language": "Spanish", "proficiency": "intermediate"}
+    {"language": "English", "proficiency": "fluent"}
   ]
 }`;
 

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
+import path from 'path';
 import passport from './config/passport';
 import pool from './config/db';
 import { errorHandler } from './middleware/errorHandler';
@@ -13,6 +14,7 @@ import resumeRoutes from './routes/resume';
 import analysisRoutes from './routes/analysis';
 import exportRoutes from './routes/export';
 import aiRoutes from './routes/ai';
+import templateRoutes from './routes/templates';
 
 const app = express();
 
@@ -20,8 +22,8 @@ const app = express();
 app.use(helmet());
 
 // Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS
 app.use(
@@ -74,15 +76,26 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many AI requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Routes
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/analysis', aiLimiter);
+app.use('/api/ai', aiLimiter);
 app.use('/api/', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -91,5 +104,16 @@ app.get('/api/health', (_req, res) => {
 
 // Error handler (must be last)
 app.use(errorHandler);
+
+// Production: serve React client bundle and SPA fallback
+// Must come AFTER error handler so API 404s are not swallowed
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientDist));
+  // SPA fallback — all non-API routes serve index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 export default app;

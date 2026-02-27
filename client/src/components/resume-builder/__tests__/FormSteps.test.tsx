@@ -1,13 +1,13 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
-import BasicInfoStep from '../steps/BasicInfoStep';
-import TargetRoleStep from '../steps/TargetRoleStep';
+import PersonalInfoStep from '../steps/PersonalInfoStep';
 import EducationStep from '../steps/EducationStep';
 import ExperienceStep from '../steps/ExperienceStep';
 import ProjectsStep from '../steps/ProjectsStep';
 import SkillsStep from '../steps/SkillsStep';
+import SummaryStep from '../steps/SummaryStep';
 import AdditionalStep from '../steps/AdditionalStep';
 import type { ResumeFormData } from '../../../types';
 
@@ -35,8 +35,13 @@ const emptyFormData: ResumeFormData = {
   phone: '',
   city: '',
   country: '',
+  linkedinUrl: '',
+  portfolioUrl: '',
+  additionalLinks: [],
   targetRole: '',
+  targetIndustry: '',
   targetCountry: '',
+  targetCity: '',
   education: [
     {
       degreeType: '',
@@ -48,30 +53,44 @@ const emptyFormData: ResumeFormData = {
   ],
   experience: [],
   projects: [],
-  technicalSkills: '',
-  softSkills: [],
-  languages: [{ name: '', proficiency: 'basic' }],
+  skills: {
+    technical: [],
+    soft: [],
+    languages: [{ language: '', proficiency: 'basic' }],
+  },
   professionalSummary: '',
+  certifications: '',
+  extracurriculars: '',
 };
 
-// ─── BasicInfoStep ───────────────────────────────────────────────────────────
+// ─── PersonalInfoStep (merged Basic + Target Role) ──────────────────────────
 
-describe('BasicInfoStep', () => {
+describe('PersonalInfoStep', () => {
   it('renders all basic info fields', () => {
-    render(<BasicInfoStep data={emptyFormData} onChange={vi.fn()} />);
+    render(<PersonalInfoStep data={emptyFormData} onChange={vi.fn()} />);
 
     expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/phone/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/linkedin/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/portfolio/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^city$/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^country$/i)).toBeInTheDocument();
+    // Use exact match to avoid confusion with "Target City"
+    expect(screen.getByLabelText(/^city \*$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^country \*$/i)).toBeInTheDocument();
   });
 
-  it('calls onChange when fields are typed into', async () => {
+  it('renders target role fields', () => {
+    render(<PersonalInfoStep data={emptyFormData} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText(/target role/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/target industry/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/target country/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/target city/i)).toBeInTheDocument();
+  });
+
+  it('calls onChange when full name is typed', async () => {
     const spy = vi.fn();
-    render(<Wrapper Component={BasicInfoStep} initial={emptyFormData} onChangeSpy={spy} />);
+    render(<Wrapper Component={PersonalInfoStep} initial={emptyFormData} onChangeSpy={spy} />);
 
     await userEvent.type(screen.getByLabelText(/full name/i), 'Jane');
 
@@ -79,22 +98,10 @@ describe('BasicInfoStep', () => {
     const lastCall = spy.mock.calls[spy.mock.calls.length - 1][0];
     expect(lastCall.fullName).toBe('Jane');
   });
-});
 
-// ─── TargetRoleStep ──────────────────────────────────────────────────────────
-
-describe('TargetRoleStep', () => {
-  it('renders target role fields', () => {
-    render(<TargetRoleStep data={emptyFormData} onChange={vi.fn()} />);
-
-    expect(screen.getByLabelText(/target role/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/target country/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/target city/i)).toBeInTheDocument();
-  });
-
-  it('calls onChange with updated target role', async () => {
+  it('calls onChange when target role is typed', async () => {
     const spy = vi.fn();
-    render(<Wrapper Component={TargetRoleStep} initial={emptyFormData} onChangeSpy={spy} />);
+    render(<Wrapper Component={PersonalInfoStep} initial={emptyFormData} onChangeSpy={spy} />);
 
     await userEvent.type(screen.getByLabelText(/target role/i), 'Dev');
 
@@ -167,51 +174,99 @@ describe('ProjectsStep', () => {
   });
 });
 
-// ─── SkillsStep ──────────────────────────────────────────────────────────────
+// ─── SkillsStep (updated for nested structure) ──────────────────────────────
 
 describe('SkillsStep', () => {
-  it('renders skills fields', () => {
+  it('renders skills section headers', () => {
     render(<SkillsStep data={emptyFormData} onChange={vi.fn()} />);
 
-    expect(screen.getByLabelText(/technical skills/i)).toBeInTheDocument();
-    expect(screen.getByText(/soft skills/i)).toBeInTheDocument();
+    // Use getAllByText since some text appears multiple times (in labels and descriptions)
+    const technicalSkillsElements = screen.getAllByText(/technical skills/i);
+    expect(technicalSkillsElements.length).toBeGreaterThan(0);
+
+    const softSkillsElements = screen.getAllByText(/soft skills/i);
+    expect(softSkillsElements.length).toBeGreaterThan(0);
+
+    const languagesElements = screen.getAllByText(/languages/i);
+    expect(languagesElements.length).toBeGreaterThan(0);
   });
 
-  it('calls onChange for technical skills', async () => {
-    const spy = vi.fn();
-    render(<Wrapper Component={SkillsStep} initial={emptyFormData} onChangeSpy={spy} />);
-
-    await userEvent.type(
-      screen.getByLabelText(/technical skills/i),
-      'React'
+  it('shows AI-generated skills banner when targetRole and targetIndustry are provided', () => {
+    render(
+      <SkillsStep
+        data={emptyFormData}
+        onChange={vi.fn()}
+        isGenerating={false}
+        generationError={null}
+        targetRole="Software Engineer"
+        targetIndustry="Technology"
+      />
     );
 
-    const lastCall = spy.mock.calls[spy.mock.calls.length - 1][0];
-    expect(lastCall.technicalSkills).toBe('React');
+    expect(screen.getByText(/AI-generated skills for/i)).toBeInTheDocument();
+    expect(screen.getByText(/Software Engineer/i)).toBeInTheDocument();
+    expect(screen.getByText(/Technology/i)).toBeInTheDocument();
   });
 });
 
-// ─── AdditionalStep ──────────────────────────────────────────────────────────
+// ─── SummaryStep (new step for professional summary) ────────────────────────
 
-describe('AdditionalStep', () => {
-  it('renders additional info fields', () => {
-    render(<AdditionalStep data={emptyFormData} onChange={vi.fn()} />);
+describe('SummaryStep', () => {
+  it('renders professional summary field', () => {
+    render(<SummaryStep data={emptyFormData} onChange={vi.fn()} />);
 
-    expect(screen.getByLabelText(/professional summary/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/certifications/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/extracurricular/i)).toBeInTheDocument();
+    // The label is "Summary" not "Professional Summary"
+    expect(screen.getByLabelText(/^summary/i)).toBeInTheDocument();
   });
 
-  it('calls onChange for professional summary', async () => {
+  it('renders AI generate button', () => {
+    render(<SummaryStep data={emptyFormData} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /generate with ai/i })).toBeInTheDocument();
+  });
+
+  it('calls onChange when summary is typed', async () => {
     const spy = vi.fn();
-    render(<Wrapper Component={AdditionalStep} initial={emptyFormData} onChangeSpy={spy} />);
+    render(<Wrapper Component={SummaryStep} initial={emptyFormData} onChangeSpy={spy} />);
 
     await userEvent.type(
-      screen.getByLabelText(/professional summary/i),
+      screen.getByLabelText(/^summary/i),
       'Motivated'
     );
 
     const lastCall = spy.mock.calls[spy.mock.calls.length - 1][0];
     expect(lastCall.professionalSummary).toBe('Motivated');
+  });
+
+  it('shows character count', () => {
+    render(<SummaryStep data={emptyFormData} onChange={vi.fn()} />);
+
+    // Character count is split across two spans: "0" and " / 500 characters"
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText(/\/ 500 characters/i)).toBeInTheDocument();
+  });
+});
+
+// ─── AdditionalStep (Professional Summary removed) ──────────────────────────
+
+describe('AdditionalStep', () => {
+  it('renders certifications and extracurriculars fields', () => {
+    render(<AdditionalStep data={emptyFormData} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText(/certifications/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/extracurricular/i)).toBeInTheDocument();
+  });
+
+  it('calls onChange for certifications', async () => {
+    const spy = vi.fn();
+    render(<Wrapper Component={AdditionalStep} initial={emptyFormData} onChangeSpy={spy} />);
+
+    await userEvent.type(
+      screen.getByLabelText(/certifications/i),
+      'AWS'
+    );
+
+    const lastCall = spy.mock.calls[spy.mock.calls.length - 1][0];
+    expect(lastCall.certifications).toBe('AWS');
   });
 });

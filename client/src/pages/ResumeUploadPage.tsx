@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { useToastContext } from '../contexts/ToastContext';
 import FileUpload from '../components/resume-upload/FileUpload';
 import TargetRoleForm, {
@@ -18,6 +19,31 @@ export default function ResumeUploadPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [fileError, setFileError] = useState<string>('');
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTimeouts = () => {
+    for (const id of timeoutIdsRef.current) {
+      clearTimeout(id);
+    }
+    timeoutIdsRef.current = [];
+  };
+
+  // Cleanup on unmount / back navigation
+  useEffect(() => {
+    return () => {
+      clearTimeouts();
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  const handleCancel = () => {
+    abortControllerRef.current?.abort();
+    clearTimeouts();
+    setStatus(null);
+    setErrorMessage('');
+  };
+
   const handleSubmit = async (data: TargetRoleData) => {
     if (!file) {
       setFileError('Please upload a PDF file first');
@@ -28,6 +54,15 @@ export default function ResumeUploadPage() {
     setStatus('uploading');
     setErrorMessage('');
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // Schedule timed progress transitions
+    timeoutIdsRef.current.push(
+      setTimeout(() => setStatus('parsing'), 1500),
+      setTimeout(() => setStatus('analyzing'), 3000)
+    );
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -36,22 +71,38 @@ export default function ResumeUploadPage() {
       if (data.targetCity) {
         formData.append('targetCity', data.targetCity);
       }
+      if (data.jobDescription) {
+        formData.append('jobDescription', data.jobDescription);
+      }
 
-      const result = await uploadResume(formData);
+      const result = await uploadResume(formData, { signal: controller.signal });
+
+      clearTimeouts();
       setStatus('success');
       showToast('Resume uploaded and analyzed successfully');
 
-      // Navigate to analysis page after short delay
-      setTimeout(() => {
+      // Navigate after brief delay so user sees success state
+      const navTimeout = setTimeout(() => {
         navigate(`/resume/${result.resume.id}`);
-      }, 1500);
+      }, 500);
+      timeoutIdsRef.current.push(navTimeout);
     } catch (err: any) {
+      clearTimeouts();
+
+      // Don't show error on intentional cancellation
+      if (axios.isCancel(err)) {
+        return;
+      }
+
       setStatus('error');
       setErrorMessage(
         err?.response?.data?.error || err?.message || 'Something went wrong'
       );
     }
   };
+
+  const isInProgress =
+    status === 'uploading' || status === 'parsing' || status === 'analyzing';
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -83,12 +134,22 @@ export default function ResumeUploadPage() {
           </h2>
           <TargetRoleForm
             onSubmit={handleSubmit}
-            loading={status !== null && status !== 'success' && status !== 'error'}
+            loading={isInProgress}
           />
         </div>
 
         {status && (
-          <UploadProgress status={status} errorMessage={errorMessage} />
+          <div className="space-y-3">
+            <UploadProgress status={status} errorMessage={errorMessage} />
+            {isInProgress && (
+              <button
+                onClick={handleCancel}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

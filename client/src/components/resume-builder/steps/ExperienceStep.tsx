@@ -11,6 +11,7 @@ const emptyExperience: Experience = {
   role: '',
   duration: '',
   responsibilities: '',
+  industry: '',
 };
 
 export default function ExperienceStep({ data, onChange }: Props) {
@@ -74,6 +75,8 @@ export default function ExperienceStep({ data, onChange }: Props) {
               >
                 <option value="internship">Internship</option>
                 <option value="part-time">Part-time</option>
+                <option value="full-time">Full-time</option>
+                <option value="freelance">Freelance</option>
                 <option value="volunteer">Volunteer</option>
               </select>
             </div>
@@ -87,6 +90,20 @@ export default function ExperienceStep({ data, onChange }: Props) {
                 type="text"
                 value={exp.company}
                 onChange={(e) => updateEntry(index, 'company', e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor={`industry-${index}`} className="block text-sm font-medium text-gray-700">
+                Industry (optional)
+              </label>
+              <input
+                id={`industry-${index}`}
+                type="text"
+                value={exp.industry || ''}
+                onChange={(e) => updateEntry(index, 'industry', e.target.value)}
+                placeholder="e.g., Technology, Finance"
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import UploadProgress, { UploadStatus } from '../UploadProgress';
+import UploadProgress from '../UploadProgress';
 
 describe('UploadProgress', () => {
   it('shows uploading state', () => {

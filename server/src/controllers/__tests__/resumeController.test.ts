@@ -21,7 +21,7 @@ import pool from '../../config/db';
 import { uploadMiddleware } from '../../middleware/upload';
 import { resumeValidators } from '../../middleware/validators/resumeValidators';
 import { validate } from '../../middleware/validate';
-import { uploadResume } from '../resumeController';
+import { uploadResume, saveDraft, loadDraft } from '../resumeController';
 
 const mockExtract = extractTextFromPDF as jest.Mock;
 const mockAnalyze = analyzeResume as jest.Mock;
@@ -106,7 +106,12 @@ describe('POST /api/resume/upload', () => {
     // Clean uploaded files between tests
     if (fs.existsSync(UPLOADS_DIR)) {
       for (const f of fs.readdirSync(UPLOADS_DIR)) {
-        fs.unlinkSync(path.join(UPLOADS_DIR, f));
+        try {
+          fs.unlinkSync(path.join(UPLOADS_DIR, f));
+        } catch (e: any) {
+          // Ignore EBUSY (Windows file locking) and ENOENT (already deleted)
+          if (e.code !== 'EBUSY' && e.code !== 'ENOENT') throw e;
+        }
       }
     }
   });
@@ -241,5 +246,231 @@ describe('POST /api/resume/upload', () => {
     expect(res.status).toBe(500);
     const files = fs.readdirSync(UPLOADS_DIR);
     expect(files.length).toBe(0);
+  });
+});
+
+describe('POST /api/resume/draft/save', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const sampleFormData = {
+    fullName: 'John Doe',
+    email: 'john@example.com',
+    phone: '+1234567890',
+    city: 'New York',
+    country: 'USA',
+    targetRole: 'Software Engineer',
+    targetIndustry: 'Technology',
+    targetCountry: 'USA',
+    education: [],
+    experience: [],
+    projects: [],
+    skills: { technical: [], soft: [], languages: [] },
+    professionalSummary: '',
+  };
+
+  function createDraftApp(authenticated = true, userId = 'test-user-123') {
+    const app = express();
+    app.use(express.json());
+
+    app.use((req, _res, next) => {
+      if (authenticated) {
+        (req as any).user = { id: userId };
+      }
+      next();
+    });
+
+    app.post('/api/resume/draft/save', saveDraft);
+
+    app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      res.status(500).json({ error: err.message });
+    });
+
+    return app;
+  }
+
+  it('should create new draft successfully', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'new-resume-123' }] }) // INSERT resumes
+      .mockResolvedValueOnce({ rows: [] }); // INSERT resume_data
+
+    const app = createDraftApp();
+    const res = await request(app)
+      .post('/api/resume/draft/save')
+      .send({ formData: sampleFormData });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.resumeId).toBe('new-resume-123');
+    expect(res.body.message).toBe('Draft saved successfully');
+
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO resumes'),
+      expect.arrayContaining(['test-user-123', 'Software Engineer', 'USA'])
+    );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO resume_data'),
+      expect.arrayContaining(['new-resume-123', JSON.stringify(sampleFormData)])
+    );
+  });
+
+  it('should update existing draft successfully', async () => {
+    const existingId = 'existing-123';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: existingId }] }) // SELECT existing
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE resumes
+      .mockResolvedValueOnce({ rows: [] }); // UPSERT resume_data
+
+    const app = createDraftApp();
+    const res = await request(app)
+      .post('/api/resume/draft/save')
+      .send({ resumeId: existingId, formData: sampleFormData });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.resumeId).toBe(existingId);
+
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT id FROM resumes WHERE id'),
+      [existingId, 'test-user-123']
+    );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE resumes'),
+      expect.arrayContaining(['Software Engineer', 'USA'])
+    );
+  });
+
+  it('should return 400 if formData is missing', async () => {
+    const app = createDraftApp();
+    const res = await request(app).post('/api/resume/draft/save').send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Form data is required');
+  });
+
+  it('should return 404 if resumeId does not exist', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // No existing resume
+
+    const app = createDraftApp();
+    const res = await request(app)
+      .post('/api/resume/draft/save')
+      .send({ resumeId: 'non-existent-123', formData: sampleFormData });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Resume not found');
+  });
+
+  it('should set status to "draft" and created_with_live_preview to true', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'new-resume-123' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const app = createDraftApp();
+    await request(app)
+      .post('/api/resume/draft/save')
+      .send({ formData: sampleFormData });
+
+    const insertCall = mockQuery.mock.calls.find((call) =>
+      call[0].includes('INSERT INTO resumes')
+    );
+    expect(insertCall).toBeTruthy();
+    // Check SQL query string contains status='draft' and created_with_live_preview=true
+    expect(insertCall[0]).toContain("'draft'");
+    expect(insertCall[0]).toContain('true');
+  });
+});
+
+describe('GET /api/resume/draft/:id', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const sampleFormData = {
+    fullName: 'Jane Smith',
+    email: 'jane@example.com',
+    targetRole: 'Data Analyst',
+  };
+
+  function createLoadApp(authenticated = true, userId = 'test-user-123') {
+    const app = express();
+    app.use(express.json());
+
+    app.use((req, _res, next) => {
+      if (authenticated) {
+        (req as any).user = { id: userId };
+      }
+      next();
+    });
+
+    app.get('/api/resume/draft/:id', loadDraft);
+
+    app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      res.status(500).json({ error: err.message });
+    });
+
+    return app;
+  }
+
+  it('should load draft successfully', async () => {
+    const resumeId = 'resume-123';
+    const updatedAt = new Date().toISOString();
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: resumeId, updated_at: updatedAt }] }) // SELECT resume
+      .mockResolvedValueOnce({ rows: [{ form_data: sampleFormData }] }); // SELECT form_data
+
+    const app = createLoadApp();
+    const res = await request(app).get(`/api/resume/draft/${resumeId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.resumeId).toBe(resumeId);
+    expect(res.body.formData).toEqual(sampleFormData);
+    expect(res.body.updatedAt).toBe(updatedAt);
+
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT id, updated_at FROM resumes'),
+      [resumeId, 'test-user-123']
+    );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT form_data FROM resume_data'),
+      [resumeId]
+    );
+  });
+
+  it('should return 404 if resume not found', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // No resume
+
+    const app = createLoadApp();
+    const res = await request(app).get('/api/resume/draft/non-existent');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Resume not found');
+  });
+
+  it('should return 404 if resume_data not found', async () => {
+    const resumeId = 'resume-123';
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: resumeId, updated_at: new Date() }] })
+      .mockResolvedValueOnce({ rows: [] }); // No form_data
+
+    const app = createLoadApp();
+    const res = await request(app).get(`/api/resume/draft/${resumeId}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Resume data not found');
+  });
+
+  it('should only return resume belonging to authenticated user', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // Different user
+
+    const app = createLoadApp(true, 'different-user');
+    const res = await request(app).get('/api/resume/draft/resume-123');
+
+    expect(res.status).toBe(404);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      ['resume-123', 'different-user']
+    );
   });
 });
