@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useToastContext } from '../contexts/ToastContext';
+import { resendVerification } from '../utils/api';
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<unknown>;
@@ -8,26 +9,52 @@ interface LoginPageProps {
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToastContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+  const verified = searchParams.get('verified') === 'true';
+  const reset = searchParams.get('reset') === 'true';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setUnverifiedEmail(null);
     setLoading(true);
 
     try {
       await onLogin(email, password);
       showToast('Signed in successfully');
       navigate('/dashboard');
-    } catch {
-      setError('Invalid email or password');
+    } catch (err: any) {
+      const status = err.response?.status;
+      const data = err.response?.data;
+
+      if (status === 403 && data?.email) {
+        setUnverifiedEmail(data.email);
+        setError(data.error);
+      } else {
+        setError(data?.error || 'Invalid email or password');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResend = async () => {
+    if (!unverifiedEmail) return;
+    setResendStatus('sending');
+    try {
+      await resendVerification(unverifiedEmail);
+    } catch {
+      // Don't reveal errors
+    }
+    setResendStatus('sent');
   };
 
   return (
@@ -37,9 +64,30 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           Sign in to your account
         </h2>
 
+        {verified && (
+          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
+            Email verified successfully. You can now sign in.
+          </div>
+        )}
+
+        {reset && (
+          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
+            Password reset successfully. Sign in with your new password.
+          </div>
+        )}
+
         {error && (
           <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
-            {error}
+            <p>{error}</p>
+            {unverifiedEmail && (
+              <button
+                onClick={handleResend}
+                disabled={resendStatus !== 'idle'}
+                className="mt-2 text-indigo-600 hover:text-indigo-500 underline disabled:opacity-50"
+              >
+                {resendStatus === 'sending' ? 'Sending...' : resendStatus === 'sent' ? 'Verification link sent' : 'Resend verification email'}
+              </button>
+            )}
           </div>
         )}
 
@@ -59,9 +107,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <Link to="/forgot-password" className="text-sm text-indigo-600 hover:text-indigo-500">
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

@@ -84,9 +84,18 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: { error: 'Too many password reset requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Routes
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/analysis', aiLimiter);
 app.use('/api/ai', aiLimiter);
 app.use('/api/', apiLimiter);

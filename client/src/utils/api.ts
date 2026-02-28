@@ -190,6 +190,27 @@ export async function switchResumeTemplate(
   return response.data;
 }
 
+// Auth: email verification & password reset
+export async function verifyEmail(token: string): Promise<{ message: string; autoLogin?: boolean; user?: { id: string; email: string; name: string } }> {
+  const response = await api.get('/auth/verify-email', { params: { token } });
+  return response.data;
+}
+
+export async function resendVerification(email: string): Promise<{ message: string }> {
+  const response = await api.post('/auth/resend-verification', { email });
+  return response.data;
+}
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
+}
+
+export async function resetPassword(token: string, password: string): Promise<{ message: string }> {
+  const response = await api.post('/auth/reset-password', { token, password });
+  return response.data;
+}
+
 // Named export for convenience
 export const apiClient = api;
 

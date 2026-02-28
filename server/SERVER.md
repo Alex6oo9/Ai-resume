@@ -22,10 +22,10 @@ All endpoints prefixed with `/api`. Client should configure `axios.baseURL = '/a
 #### `POST /api/auth/register`
 ```json
 // Request
-{ "name": "string", "email": "string", "password": "string (min 6 chars)" }
-// Response 201
-{ "user": { "id": "uuid", "email": "string", "name": "string" } }
-// Errors: 400 (email exists), 500
+{ "name": "string (optional)", "email": "string", "password": "string (min 8 chars)" }
+// Response 201 — does NOT auto-login; user must verify email first
+{ "message": "Account created. Please check your email to verify your account." }
+// Errors: 409 (email exists), 400 (validation)
 ```
 
 #### `POST /api/auth/login`
@@ -34,7 +34,8 @@ All endpoints prefixed with `/api`. Client should configure `axios.baseURL = '/a
 { "email": "string", "password": "string" }
 // Response 200
 { "user": { "id": "uuid", "email": "string", "name": "string" } }
-// Errors: 400 (invalid credentials), 500
+// 401 — invalid credentials
+// 403 — email not verified: { "error": "Please verify your email before logging in.", "email": "user@example.com" }
 ```
 
 #### `POST /api/auth/logout`
@@ -42,6 +43,40 @@ Auth required. Destroys session. Response: `{ "message": "Logged out successfull
 
 #### `GET /api/auth/me`
 Auth required. Returns current user or 401.
+
+#### `GET /api/auth/verify-email?token=<hex>`
+Verifies email using token from email link.
+```json
+// Response 200
+{ "message": "Email verified successfully. You can now log in." }
+// 400 — invalid or expired token
+```
+
+#### `POST /api/auth/resend-verification`
+```json
+// Request
+{ "email": "string" }
+// Response 200 (always same message to prevent email enumeration)
+{ "message": "If an account exists with that email, a verification link has been sent." }
+```
+
+#### `POST /api/auth/forgot-password`
+Rate limited: 5 requests/hour.
+```json
+// Request
+{ "email": "string" }
+// Response 200 (always same message)
+{ "message": "If an account exists with that email, a password reset link has been sent." }
+```
+
+#### `POST /api/auth/reset-password`
+```json
+// Request
+{ "token": "string", "password": "string (min 8 chars)" }
+// Response 200
+{ "message": "Password reset successfully. You can now log in with your new password." }
+// 400 — invalid/expired token or password too short
+```
 
 ---
 

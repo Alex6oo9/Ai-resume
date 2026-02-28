@@ -14,9 +14,12 @@ import ResumeBuilderPage from './pages/ResumeBuilderPage';
 import ResumeAnalysisPage from './pages/ResumeAnalysisPage';
 import NotFoundPage from './pages/NotFoundPage';
 import SkillsDemo from './pages/SkillsDemo';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 export default function App() {
-  const { user, loading, login, register, logout } = useAuth();
+  const { user, loading, login, register, logout, setUser } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
 
   if (loading) {
@@ -82,6 +85,9 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/verify-email" element={<VerifyEmailPage onVerified={setUser} />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/demo/skills" element={<SkillsDemo />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

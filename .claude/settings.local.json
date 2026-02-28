@@ -21,7 +21,31 @@
       "Bash(test:*)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm run migrate:*)",
+      "Bash(git restore:*)",
+      "Bash(git merge:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "Bash(cmd /c \"mkdir \"\"D:\\\\AI resume\\\\server\\\\src\\\\types\"\"\")",
+      "Bash(cmd /c \"mkdir \"\"D:\\\\AI resume\\\\server\\\\src\\\\routes\\\\templates\"\"\")",
+      "mcp__plugin_playwright_playwright__browser_handle_dialog",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "WebSearch",
+      "WebFetch(domain:enhancv.com)",
+      "WebFetch(domain:designshack.net)",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_install",
+      "mcp__plugin_playwright_playwright__browser_type"
     ]
   }
 }

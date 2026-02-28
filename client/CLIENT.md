@@ -21,17 +21,36 @@ const apiClient = axios.create({
 
 ## Authentication Flow
 
-### Session-Based Auth
-- Client sends credentials to `/auth/login` or `/auth/register`
-- Server sets session cookie
+### Session-Based Auth with Email Verification
+- Client sends credentials to `/auth/register` — does NOT auto-login
+- User must verify email via link sent to their inbox
+- After verification, user logs in via `/auth/login`
+- Server sets session cookie on successful login
 - Client includes `withCredentials: true` in all requests
 - Client checks auth status via `/auth/me` on mount
+- Login returns 403 if email not verified (with resend option)
 
 ### Auth State Management
 ```typescript
 // client/src/hooks/useAuth.ts
 const { user, loading, login, register, logout } = useAuth();
-// user: { id: string, email: string, name: string } | null
+// user: { id: string, email: string, name?: string } | null
+// register(email, password, name?) — no auto-login, returns void
+```
+
+### Auth Pages
+- `/login` — supports `?verified=true` and `?reset=true` success banners
+- `/register` — includes optional name field, shows "check email" on success
+- `/verify-email?token=<hex>` — verifies email, links to login
+- `/forgot-password` — sends password reset email
+- `/reset-password?token=<hex>` — sets new password
+
+### Auth API Functions (`client/src/utils/api.ts`)
+```typescript
+verifyEmail(token: string)
+resendVerification(email: string)
+forgotPassword(email: string)
+resetPassword(token: string, password: string)
 ```
 
 ## Data Structures Sent to Server

@@ -30,18 +30,18 @@ export function useAuth() {
     return res.data.user;
   };
 
-  const register = async (email: string, password: string) => {
-    const res = await api.post<{ user: User }>('/auth/register', {
-      email,
-      password,
-    });
-    setAuthState({ user: res.data.user, loading: false });
-    return res.data.user;
+  const register = async (email: string, password: string, name?: string) => {
+    await api.post('/auth/register', { email, password, name });
+    // No auto-login — user must verify email first
   };
 
   const logout = async () => {
     await api.post('/auth/logout');
     setAuthState({ user: null, loading: false });
+  };
+
+  const setUser = (user: User) => {
+    setAuthState({ user, loading: false });
   };
 
   return {
@@ -50,5 +50,6 @@ export function useAuth() {
     login,
     register,
     logout,
+    setUser,
   };
 }

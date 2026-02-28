@@ -23,6 +23,8 @@ import { up as addModernMinimalistBlock } from './016_add_modern_minimalist_bloc
 import { up as addEditorialEarthTone } from './017_add_editorial_earth_tone_template';
 import { up as addJobDescription } from './018_add_job_description';
 import { up as addAnalysisHistory } from './019_add_analysis_history';
+import { up as emailVerification } from './020_email_verification';
+import { up as passwordReset } from './021_password_reset';
 
 const migrations = [
   { name: '001_create_users', up: createUsers },
@@ -44,6 +46,8 @@ const migrations = [
   { name: '017_add_editorial_earth_tone_template', up: addEditorialEarthTone },
   { name: '018_add_job_description', up: addJobDescription },
   { name: '019_add_analysis_history', up: addAnalysisHistory },
+  { name: '020_email_verification', up: emailVerification },
+  { name: '021_password_reset', up: passwordReset },
 ];
 
 async function runMigrations(): Promise<void> {

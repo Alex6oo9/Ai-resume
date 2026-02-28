@@ -56,10 +56,10 @@ When working on frontend/backend integration, API contracts, or data structures:
 │       ├── config/         # db.ts, passport.ts, openai.ts
 │       ├── controllers/    # resumeController, exportController, templateController
 │       ├── middleware/      # auth, upload, validate, errorHandler, validators/
-│       ├── migrations/     # Numbered SQL migrations (001–008) + runner
+│       ├── migrations/     # Numbered SQL migrations (001–021) + runner
 │       ├── routes/         # auth/, resume/, analysis/, export/, templates/
-│       ├── services/       # ai/ (resumeAnalyzer, resumeGenerator), export/ (pdfGenerator), parser/, templateQueries
-│       ├── utils/          # sanitizePromptInput (AI prompt injection defense)
+│       ├── services/       # ai/ (resumeAnalyzer, resumeGenerator), export/ (pdfGenerator), email/ (emailService), parser/, templateQueries
+│       ├── utils/          # sanitizePromptInput (AI prompt injection defense), tokenUtils
 │       └── types/          # template.types.ts
 ├── client/                 # React SPA
 │   └── src/
@@ -69,7 +69,7 @@ When working on frontend/backend integration, API contracts, or data structures:
 │       │   ├── resume-builder/  # Path B: multi-step form + StepIndicator
 │       │   ├── live-preview/    # ResumePreview, TemplateRenderer (shim), TemplateSelector, TemplatePreviewModal, templateTypes.ts
 │       │   └── templates/       # TemplateSwitcher, TemplateCard, ResumeTemplateSwitcher, 7 template components, types.ts, helpers/
-│       ├── pages/          # HomePage, Login, Register, Dashboard, ResumeUploadPage, ResumeBuilderPage
+│       ├── pages/          # HomePage, Login, Register, Dashboard, ResumeUploadPage, ResumeBuilderPage, VerifyEmailPage, ForgotPasswordPage, ResetPasswordPage
 │       ├── hooks/          # useAuth, useTemplates, useTemplateSwitch
 │       ├── utils/          # api.ts (axios instance + helpers)
 │       └── types/          # TypeScript interfaces (index.ts)
@@ -106,8 +106,8 @@ When working on frontend/backend integration, API contracts, or data structures:
 ### Database
 - PostgreSQL with raw SQL queries via `pg` pool (no ORM)
 - UUIDs for primary keys (`gen_random_uuid()`)
-- Migrations in `server/src/migrations/` numbered sequentially (001–019)
-- Tables: `users`, `session`, `resumes`, `resume_data`, `migrations`, `templates`, `subscriptions`, `resume_history`, `analysis_history`
+- Migrations in `server/src/migrations/` numbered sequentially (001–021)
+- Tables: `users`, `session`, `resumes`, `resume_data`, `migrations`, `templates`, `subscriptions`, `resume_history`, `analysis_history`, `email_verification_tokens`, `password_reset_tokens`
 - **Dropped**: `template_configurations` (styling now lives in React template components)
 
 ## Common Commands
@@ -157,6 +157,8 @@ See `.env.example` — required:
 - `OPENAI_API_KEY` — OpenAI API key
 - `PORT` — server port (default 5000)
 - `CLIENT_URL` — frontend origin for CORS (default http://localhost:5173)
+- `RESEND_API_KEY` — Resend API key for email sending (optional; falls back to console logging in dev)
+- `FROM_EMAIL` — sender email address (default: `AI Resume Builder <noreply@resend.dev>`)
 
 ## Current Progress
 
@@ -170,3 +172,4 @@ See `.env.example` — required:
 - [x] **Template system** — 7 per-component templates (`modern_minimal`, `creative_bold`, `professional_classic`, `tech_focused`, `healthcare_pro`, `warm_creative`, `sleek_director`), live preview, template switcher, photo support, DB migrations 001–012, subscription-tier gating scaffold, per-template React refactor (each template is a self-contained `.tsx` component)
 - [x] **Phase 7**: Deployment — template-aware PDF export ✓, production build ✓, SPA static serving ✓
 - [x] **Phase 5 (Analysis UX)**: Original PDF viewer (Path A, `GET /resume/:id/file`), ATS score SVG donut chart (pure SVG, no packages), analysis history per resume (`analysis_history` table, migration 019, `GET /analysis/history/:resumeId`)
+- [x] **Email Verification & Password Reset**: Registration requires email verification (no auto-login), login checks `is_email_verified`, forgot/reset password flow, Resend email service (dev console fallback), `name` column on users, rate-limited forgot-password (5/hr), migrations 020-021, new pages: VerifyEmailPage, ForgotPasswordPage, ResetPasswordPage

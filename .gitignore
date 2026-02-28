@@ -9,9 +9,17 @@ node_modules/
 server/dist/
 client/dist/
 
-# Uploads
+# Uploads (user data — never commit)
 uploads/*
 !uploads/.gitkeep
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Build artifacts
+client/tsconfig.tsbuildinfo
+
+# Tool directories
+.playwright-mcp/
 
 # IDE
 .vscode/
