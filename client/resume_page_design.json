@@ -1,0 +1,57 @@
+{
+    "page": "Analysis Results",
+    "route": "/analysis/:id",
+    "description": "A comprehensive dashboard displaying the results of the AI resume analysis, broken down into 3 tabs: Overview, ATS Scoring, and Detailed Improvements.",
+    "layout": {
+        "structure": "12-column grid layout (max-w-7xl). Sidebar takes up 3 cols (resume info + tabs). Main content takes up 9 cols.",
+        "navigation": "Sticky top glassmorphism navbar (bg-background/80 backdrop-blur-md) with back button to dashboard and a History button."
+    },
+    "typography": {
+        "headings": "font-heading (Outfit), bold weights",
+        "body": "font-sans (Inter), regular, medium, and bold weights"
+    },
+    "colors": {
+        "semantic": {
+            "success": "emerald-500 (used for strengths, matched keywords)",
+            "warning": "amber-500 (used for AI suggestions, action verbs, missing sections)",
+            "danger": "red-500 (used for weaknesses, missing keywords, formatting issues)",
+            "info": "blue-500 (used for ATS scoring, quantified achievements)"
+        }
+    },
+    "ui_components": {
+        "sidebar_card": {
+            "classes": "bg-card border border-border p-6 rounded-[2rem] shadow-sm relative overflow-hidden",
+            "design_notes": "Displays uploaded file name, target role badge, and status. Contains a 'View Document' button."
+        },
+        "navigation_tabs": {
+            "container": "bg-card border border-border p-3 rounded-[2rem] shadow-sm flex flex-col gap-2",
+            "button_base": "justify-start gap-3 h-14 px-5 rounded-xl text-base font-semibold transition-all",
+            "active_state": "shadow-md with colored backgrounds (primary for overview, blue for ATS, amber for improvements)",
+            "icon_wrapper": "p-1.5 rounded-lg bg-white/20 or bg-[color]/10 depending on active state",
+            "design_notes": "Vertical pill-shaped tabs that distinctly change color based on the selected section."
+        },
+        "main_content_cards": {
+            "classes": "bg-card border border-border p-8 md:p-10 rounded-[2rem] shadow-sm relative overflow-hidden",
+            "design_notes": "All main content blocks use consistent large border radii. Most contain a subtle absolute positioned background blur for depth (e.g., 'absolute top-0 right-0 w-64 h-64 bg-[color]/5 rounded-full blur-3xl -z-10')."
+        },
+        "donut_chart": {
+            "design_notes": "Custom SVG donut chart. Stroke color changes based on score (>=80 green, >=60 yellow, <60 red). Central text displays percentage. Includes a subtle blurred drop shadow behind the SVG circle."
+        },
+        "tab_1_overview": {
+            "hero_card": "Contains the Donut Chart left aligned, and text ('Good Match!') right aligned. Includes action buttons to jump to other tabs.",
+            "lists": "Strengths (emerald) and Weaknesses (red) displayed in side-by-side cards. Uses colored dots as bullet points.",
+            "ai_suggestions": "Rendered as individual bordered blocks with a numeric badge on the left."
+        },
+        "tab_2_ats_scoring": {
+            "on_demand_state": "Initial view shows a large CTA button ('Calculate ATS Score') centered in a tall card. Uses a spinning radar icon while loading.",
+            "breakdown_card": "Shows total score donut chart alongside 3 horizontal progress bars (Format, Keyword, Sections). Bars use gradient backgrounds and a subtle skew glare effect.",
+            "keyword_badges": "Matched (emerald background/text) and Missing (red background/text) keywords displayed as flex-wrap pill tags."
+        },
+        "tab_3_detailed_improvements": {
+            "on_demand_state": "Similar to ATS tab, requires user click to generate.",
+            "action_verbs": "Shows 'weak verb' crossed out (line-through decoration-red-500/50) with an arrow pointing to the 'strong verb' in an emerald box.",
+            "quantified_achievements": "List of items with a blue numeric badge.",
+            "missing_sections": "Pill tags inside a card, with a subtle informational banner underneath."
+        }
+    }
+}

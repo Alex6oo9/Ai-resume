@@ -1,0 +1,99 @@
+{
+  "project_context": {
+    "goal": "Build a modern, polished AI Resume Builder split-pane interface with React 19, TailwindCSS v4, and Framer Motion.",
+    "theme_system": "CSS variables based on `.dark` class toggled on the `<html>` or `<body>` element.",
+    "primary_color": "Indigo/Purple gradient accents (Tailwind `primary` variable)."
+  },
+  "layout_architecture": {
+    "root": {
+      "classes": "h-screen w-full flex flex-col overflow-hidden bg-background text-foreground font-sans",
+      "notes": "Locks viewport height. No body scrolling. Independent pane scrolling."
+    },
+    "header": {
+      "classes": "flex-none h-[72px] px-8 border-b border-border/50 bg-card/80 backdrop-blur-md sticky top-0 z-20 flex justify-between items-center",
+      "contents": "Left: Logo + 'Resume Builder' title. Center/Right: Stepper Navigation, Theme Toggle, Template Selector dropdown."
+    },
+    "main_grid": {
+      "classes": "flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden",
+      "notes": "Splits the remaining height. Mobile is 1 column, Desktop is 2 columns."
+    },
+    "left_pane_form": {
+      "classes": "lg:col-span-5 h-full overflow-y-auto px-6 py-8 md:px-10 bg-card relative custom-scrollbar",
+      "notes": "The interactive workspace. Uses `bg-card` for slightly elevated feel above standard background."
+    },
+    "right_pane_preview": {
+      "classes": "lg:col-span-7 h-full overflow-y-auto bg-muted/30 p-8 lg:p-12 flex flex-col items-center custom-scrollbar relative",
+      "notes": "The preview area. Distinct background color. Hidden on mobile by default."
+    }
+  },
+  "theme_mapping": {
+    "light_mode": {
+      "left_pane": {
+        "bg": "bg-white",
+        "card": "bg-white border-gray-200",
+        "input": "bg-gray-50 border-transparent",
+        "text": "text-gray-900"
+      },
+      "right_pane": {
+        "bg": "bg-gray-50",
+        "document": "bg-white text-black shadow-2xl ring-1 ring-black/5"
+      }
+    },
+    "dark_mode": {
+      "left_pane": {
+        "bg": "bg-[#0a0a0a]",
+        "card": "bg-[#121212] border-[#27272a]",
+        "input": "bg-[#18181b] border-transparent",
+        "text": "text-gray-100"
+      },
+      "right_pane": {
+        "bg": "bg-[#09090b]",
+        "document": "bg-white text-black shadow-2xl ring-4 ring-white/10"
+      },
+      "CRITICAL_RULE": "The document in the right pane MUST remain white with black text regardless of the dark mode toggle. Never apply semantic colors like `text-foreground` or `bg-card` to the inner preview document."
+    }
+  },
+  "component_specs": {
+    "form_cards": {
+      "container": "bg-background border border-border p-6 rounded-[1.5rem] shadow-sm relative group mb-6 transition-all hover:border-primary/30",
+      "drag_handle": "absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab",
+      "delete_button": "absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+    },
+    "inputs": {
+      "group": "space-y-2 mb-4",
+      "label": "text-sm font-semibold text-foreground/90 flex items-center gap-2",
+      "field": "w-full h-11 bg-muted/50 rounded-xl px-4 border border-transparent focus-visible:bg-background focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 transition-all",
+      "textarea": "w-full min-h-[120px] bg-muted/50 rounded-xl p-4 border border-transparent focus-visible:bg-background focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 transition-all resize-y"
+    },
+    "magic_ai_button": {
+      "classes": "absolute -top-3 -right-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25 rounded-full px-4 py-1.5 text-xs font-bold flex items-center gap-1.5 hover:scale-105 transition-transform cursor-pointer",
+      "icon": "<Sparkles size={12} />"
+    },
+    "stepper_nav": {
+      "container": "flex items-center gap-2 overflow-x-auto no-scrollbar",
+      "step_active": "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-background text-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.1)]",
+      "step_completed": "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground",
+      "step_pending": "flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-background text-muted-foreground",
+      "connector_line": "h-0.5 w-8 bg-border (fill with bg-primary via framer-motion width scale when completed)"
+    },
+    "mobile_preview_toggle": {
+      "classes": "fixed bottom-6 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur-md shadow-xl border border-border p-1.5 rounded-full flex gap-1 z-50 lg:hidden",
+      "tab_active": "px-6 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground transition-all",
+      "tab_inactive": "px-6 py-2 rounded-full text-sm font-semibold text-muted-foreground hover:bg-muted transition-all"
+    }
+  },
+  "framer_motion_animations": {
+    "page_transition": {
+      "initial": { "opacity": 0, "y": 20 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": -20 },
+      "transition": { "duration": 0.3 }
+    },
+    "form_step_change": {
+      "initial": { "opacity": 0, "x": 20 },
+      "animate": { "opacity": 1, "x": 0 },
+      "exit": { "opacity": 0, "x": -20 },
+      "transition": { "duration": 0.2, "ease": "easeInOut" }
+    }
+  }
+}
