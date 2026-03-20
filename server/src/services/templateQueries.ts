@@ -35,17 +35,6 @@ export async function getAllTemplates(): Promise<Template[]> {
   return rows.map(mapTemplate);
 }
 
-export async function getTemplateByName(
-  name: string
-): Promise<Template | null> {
-  const { rows } = await pool.query(
-    'SELECT * FROM templates WHERE name = $1 AND is_active = true',
-    [name]
-  );
-  if (!rows.length) return null;
-  return mapTemplate(rows[0]);
-}
-
 export async function getTemplateWithConfig(
   templateId: string
 ): Promise<Template | null> {

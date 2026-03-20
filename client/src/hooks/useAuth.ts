@@ -12,8 +12,15 @@ export function useAuth() {
     try {
       const res = await api.get<{ user: User }>('/auth/me');
       setAuthState({ user: res.data.user, loading: false });
-    } catch {
-      setAuthState({ user: null, loading: false });
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number } };
+      if (!axiosErr.response) {
+        // Network error — server may be starting up; don't redirect, just mark not loading
+        setAuthState({ user: null, loading: false });
+      } else {
+        // 401 or other HTTP error — definitely not authenticated
+        setAuthState({ user: null, loading: false });
+      }
     }
   }, []);
 

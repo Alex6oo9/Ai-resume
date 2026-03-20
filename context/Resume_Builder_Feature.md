@@ -39,7 +39,7 @@
 | AI skills generation | Auto-suggests technical skills based on target role + industry |
 | AI summary writing | Generates a 2–3 sentence professional summary on demand |
 | Draft persistence | Save/load incomplete forms (server-side, resumeId in URL) |
-| Template switching | 6 visual templates (4 Modern + 2 ATS), persisted to localStorage |
+| Template switching | 7 visual templates (5 Modern + 2 ATS), persisted to localStorage; static PNG thumbnails |
 | PDF + Markdown export | Puppeteer-rendered PDF or plain Markdown download |
 | Cover letter | AI-generated cover letter with tone/length options, inline editing, PDF/TXT export |
 | Email verification | Registration requires email verification before login is allowed |
@@ -191,7 +191,7 @@ const [formData, setFormData] = useState<ResumeFormData>(initialFormData);
 const debouncedFormData = useDebounce(formData, 300); // drives live preview
 
 // Template
-const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('modern_yellow_split');
+const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('modern');
 // Persisted to: localStorage key 'resumeBuilder_selectedTemplate'
 
 // Draft
@@ -286,7 +286,7 @@ Multiple entries. Per entry:
 | Industry | Optional text |
 | Role | Text |
 | Duration | Text (e.g. "Jun 2023 – Aug 2023") |
-| Key Responsibilities | Textarea |
+| Key Responsibilities | **RichTextEditor** — markdown toolbar (bold, italic, bullet, numbered list); supports `**bold**`, `*italic*`, `• bullet` syntax |
 
 #### Step 3 — Skills
 **File:** `client/src/components/resume-builder/steps/SkillsStep.tsx`
@@ -352,16 +352,17 @@ const debouncedFormData = useDebounce(formData, 300);
 
 ### 4.4 Template System
 
-**6 available templates** (stored as `TemplateId` union type):
+**7 available templates** (stored as `TemplateId` union type):
 
-| TemplateId | Category | Layout | Photo |
-|---|---|---|---|
-| `modern_yellow_split` | Modern | 2-col yellow split | Yes |
-| `dark_ribbon_modern` | Modern | 2-col dark sidebar, ribbon headers | Yes |
-| `modern_minimalist_block` | Modern | 2-col dark sidebar, block section headers | Yes |
-| `editorial_earth_tone` | Modern | 2-col vertical dark pill sidebar, earth tones | Yes |
-| `ats_clean` | ATS | Single-column, no sidebar, white bg | No |
-| `ats_lined` | ATS | Single-column, no sidebar, navy border-bottom h2 | No |
+| TemplateId | Category | Layout | Photo | Default |
+|---|---|---|---|---|
+| `modern` | Modern | Single-column centered header, Inter font | Yes | ✓ (sort_order=0) |
+| `modern_yellow_split` | Modern | 2-col yellow split | Yes | |
+| `dark_ribbon_modern` | Modern | 2-col dark sidebar, ribbon headers | Yes | |
+| `modern_minimalist_block` | Modern | 2-col dark sidebar, block section headers | Yes | |
+| `editorial_earth_tone` | Modern | 2-col vertical dark pill sidebar, earth tones | Yes | |
+| `ats_clean` | ATS | Single-column, no sidebar, white bg | No | |
+| `ats_lined` | ATS | Single-column, no sidebar, navy border-bottom h2 | No | |
 
 > **Removed:** `warm_creative`, `sleek_director`, `modern_minimal`, `creative_bold`, `professional_classic`, `tech_focused`, `healthcare_pro`
 
@@ -370,27 +371,27 @@ const debouncedFormData = useDebounce(formData, 300);
 **`SUPPORTS_PHOTO` constant** (in `ResumeBuilderPage.tsx`):
 ```typescript
 const SUPPORTS_PHOTO: Record<string, boolean> = {
+  modern: true,
   modern_yellow_split: true,
   dark_ribbon_modern: true,
   modern_minimalist_block: true,
   editorial_earth_tone: true,
-  ats_clean: false,
-  ats_lined: false,
+  // ats_clean and ats_lined: NOT in map → false
 };
 ```
 
 **Key files:**
-- `client/src/components/templates/types.ts` — `TemplateId` union (6 values) + `ResumeTemplateProps`
-- `client/src/components/templates/ResumeTemplateSwitcher.tsx` — maps id → component, fallback to `ModernYellowSplitTemplate`
+- `client/src/components/templates/types.ts` — `TemplateId` union (7 values) + `ResumeTemplateProps`
+- `client/src/components/templates/ResumeTemplateSwitcher.tsx` — maps id → component, fallback to `ModernTemplate`
 - Each template: `client/src/components/templates/[Name]Template.tsx` (inline styles only, no Tailwind)
-- `client/src/components/live-preview/templateTypes.ts` — `getAllTemplates()`, `getTemplate()`
+- `client/src/components/live-preview/templateTypes.ts` — `getAllTemplates()`, `getTemplate()`; includes `thumbnailUrl: '/thumbnails/{id}.png'`
 
 **Template persistence:**
 ```typescript
 // On select:
 localStorage.setItem('resumeBuilder_selectedTemplate', templateId);
 // On mount (VALID_TEMPLATE_IDS checked before restoring):
-localStorage.getItem('resumeBuilder_selectedTemplate') || 'modern_yellow_split';
+localStorage.getItem('resumeBuilder_selectedTemplate') || 'modern';
 ```
 
 ---
@@ -466,19 +467,22 @@ exportPdfWithTemplate(templateId, formData)
   → 3. POST /api/export/pdf-from-html { html }
   → 4. Receive PDF blob → browser download
 
-// Cover letter (hook: useCoverLetter, page: CoverLetterPage)
-POST /api/cover-letter/extract-keywords  { resumeText, jobDescription }
-  → Returns: { keywords: string[] }
+// Cover letter (v3 — multiple per resume; keyed by letter UUID)
+POST /api/cover-letter/extract-keywords  { resumeId?, resumeText?, jobDescription }
+  → Returns: { keywords: { matched: string[], missing: string[] } }
 
-POST /api/cover-letter/generate/:resumeId
-  { jobDescription, companyName, hiringManagerName, tone, wordCountTarget,
-    customInstructions, fullName, targetLocation, keywords }
-  → Returns: { coverLetter: CoverLetter }
+POST /api/cover-letter/generate
+  { resumeId?, resumeText?, jobTitle, companyName, jobDescription,
+    tone?, wordCountTarget?, keywords?, whyThisCompany?, achievementToHighlight? }
+  → Returns: { letter: CoverLetter }
 
-GET  /api/cover-letter/:resumeId         → Returns: { coverLetter }
-PUT  /api/cover-letter/:resumeId  { content } → Returns: { coverLetter }
-DELETE /api/cover-letter/:resumeId       → 204
-GET  /api/cover-letter/                  → Returns: { coverLetters: CoverLetter[] }
+GET  /api/cover-letter/                    → Returns: { letters: CoverLetter[] }
+GET  /api/cover-letter/resume/:resumeId    → Returns: { letters: CoverLetter[] }
+GET  /api/cover-letter/:id                 → Returns: { letter: CoverLetter }
+PUT  /api/cover-letter/:id  { content }    → Returns: { letter: CoverLetter }
+DELETE /api/cover-letter/:id               → Returns: { message }
+POST /api/cover-letter/:id/regenerate      → Returns: { letter: CoverLetter }
+POST /api/cover-letter/:id/improve         → Returns: { letter: CoverLetter }
 ```
 
 ---
@@ -501,6 +505,12 @@ All routes require `isAuthenticated` middleware.
 | DELETE | `/api/resume/:id` | `deleteResume` | Delete + file cleanup |
 | GET | `/api/resume/:id/file` | `getResumeFile` | Serve PDF (Path A only) |
 | POST | `/api/resume/:id/switch-template` | `switchTemplate` | Change template |
+
+**Health route** (no auth, no rate limit):
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/health` | DB ping + latency check; used by client ConnectivityProvider |
 
 **AI routes** (`server/src/routes/ai/`), behind `aiLimiter` (10 req/15min):
 
@@ -583,7 +593,7 @@ isAuthenticated(req, res, next):
 4. const { resumeText, matchPercentage, aiAnalysis } =
      await generateResume(transformedData);
    // GPT-4o-mini generates complete resume text + analysis
-5. const templateId = rawFormData.templateId || 'modern_yellow_split';
+5. const templateId = rawFormData.templateId || 'modern';
 6. INSERT INTO resumes (user_id, parsed_text, target_role, target_country,
      target_city, match_percentage, ai_analysis, template_id)
 7. INSERT INTO resume_data (resume_id, form_data)
@@ -1149,22 +1159,33 @@ export const buildResume = async (req, res, next) => {
 | File | Purpose |
 |---|---|
 | `client/src/pages/ResumeBuilderPage.tsx` | Main page: state, steps, submit, draft, template |
-| `client/src/components/resume-builder/steps/PersonalInfoStep.tsx` | Step 0 |
+| `client/src/components/resume-builder/steps/PersonalInfoStep.tsx` | Step 0 — personal info + target position |
 | `client/src/components/resume-builder/steps/EducationStep.tsx` | Step 1 |
 | `client/src/components/resume-builder/steps/ExperienceStep.tsx` | Step 2 |
 | `client/src/components/resume-builder/steps/SkillsStep.tsx` | Step 3 |
 | `client/src/components/resume-builder/steps/SummaryStep.tsx` | Step 4 |
 | `client/src/components/resume-builder/steps/AdditionalStep.tsx` | Step 5 |
 | `client/src/components/resume-builder/steps/ProjectsStep.tsx` | Projects sub-section (Step 5) |
+| `client/src/components/resume-builder/RichTextEditor.tsx` | Markdown toolbar textarea used in Experience + Projects steps |
 | `client/src/components/resume-builder/StepIndicator.tsx` | Progress bar with clickable steps |
+| `client/src/components/shared/ConfirmLeaveModal.tsx` | "Leave page?" guard used with `useBlocker` |
+| `client/src/components/shared/ServerDownBanner.tsx` | Sticky alert when server unreachable |
+| `client/src/contexts/AuthContext.tsx` | Global auth state (`useAuthContext()`) |
+| `client/src/contexts/ThemeContext.tsx` | Dark/light mode (`useTheme()`) |
+| `client/src/contexts/ConnectivityContext.tsx` | Server health monitoring (`useConnectivity()`) |
+| `client/src/pages/ThumbnailPreviewPage.tsx` | Template renderer for Puppeteer screenshot script |
+| `client/src/lib/utils.ts` | `cn()` — Tailwind class merging utility |
+| `client/src/components/ui/` | Primitive components: Button, Input, Label, Select, Textarea |
 | `client/src/components/live-preview/ResumePreview.tsx` | Live preview panel |
 | `client/src/components/templates/ResumeTemplateSwitcher.tsx` | templateId → component map |
-| `client/src/components/templates/types.ts` | `TemplateId` union + `ResumeTemplateProps` |
-| `client/src/components/live-preview/templateTypes.ts` | `getAllTemplates()`, `getTemplate()` |
+| `client/src/components/templates/types.ts` | `TemplateId` union (7 values) + `ResumeTemplateProps` |
+| `client/src/components/live-preview/templateTypes.ts` | `getAllTemplates()`, `getTemplate()` — includes `thumbnailUrl` |
 | `client/src/types/index.ts` | `ResumeFormData` + all sub-types |
 | `client/src/utils/api.ts` | `buildResume()`, `saveDraft()`, `loadDraft()`, `exportPdfWithTemplate()` |
 | `client/src/pages/CoverLetterPage.tsx` | Cover letter generator UI (standalone + attached-to-resume modes) |
 | `client/src/hooks/useCoverLetter.ts` | Cover letter state: `generate`, `save`, `reset`, `keywords`, `progressStep`, `savedIndicator` |
+| `client/e2e/` | Playwright E2E tests |
+| `client/playwright.config.ts` | Playwright config (Chromium, port 5173, 1 worker) |
 
 ### Backend
 
@@ -1195,6 +1216,11 @@ export const buildResume = async (req, res, next) => {
 | `server/src/migrations/023_remove_deleted_templates.ts` | Removes 5 legacy template rows |
 | `server/src/migrations/024_remove_warm_creative_sleek_director.ts` | Removes `warm_creative` + `sleek_director` |
 | `server/src/migrations/025_add_ats_templates.ts` | Adds `ats_clean` + `ats_lined`; re-categorizes `modern_yellow_split` + `editorial_earth_tone` |
+| `server/src/migrations/026_add_modern_template.ts` | Adds `modern` template (sort_order=0, default) |
+| `server/src/migrations/027_alter_cover_letters_multiple.ts` | Drops `UNIQUE(resume_id)`, adds `job_title` column |
+| `server/src/migrations/028_allow_null_resume_id_cover_letters.ts` | Makes `resume_id` nullable (standalone letters) |
+| `server/src/migrations/029_update_template_thumbnails.ts` | Sets `thumbnail_url` for all 7 templates |
+| `server/src/scripts/generate-thumbnails.ts` | Puppeteer script to screenshot all templates → PNG files |
 
 ---
 

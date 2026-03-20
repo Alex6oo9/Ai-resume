@@ -93,11 +93,6 @@ export interface Project {
   link?: string;
 }
 
-export interface Language {
-  name: string;
-  proficiency: 'native' | 'fluent' | 'intermediate' | 'basic';
-}
-
 // Additional links for Personal Information step
 export interface AdditionalLink {
   id: string;
@@ -152,4 +147,47 @@ export interface ResumeSummary {
 export interface AuthState {
   user: User | null;
   loading: boolean;
+}
+
+// Cover letter types
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal' | 'conversational';
+export type CoverLetterLength = 'short' | 'medium' | 'long';
+export type ProgressStep = 'idle' | 'extracting' | 'keywords-ready' | 'generating' | 'done' | 'error';
+
+export interface Keywords {
+  matched: string[];
+  missing: string[];
+}
+
+export interface CoverLetter {
+  id: string;
+  resume_id: string | null;
+  user_id: string;
+  content: string;
+  generated_content: string;
+  tone: CoverLetterTone;
+  word_count_target: CoverLetterLength;
+  company_name: string | null;
+  hiring_manager_name: string | null;
+  job_title: string | null;
+  custom_instructions: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GenerateCoverLetterPayload {
+  resumeId?: string;
+  resumeText?: string;
+  fullName: string;
+  targetRole?: string;
+  targetLocation?: string;
+  jobDescription: string;
+  companyName: string;
+  hiringManagerName?: string;
+  jobTitle?: string;
+  tone: CoverLetterTone;
+  wordCountTarget: CoverLetterLength;
+  matchedKeywords?: string[];
+  missingKeywords?: string[];
+  customInstructions?: string;
 }

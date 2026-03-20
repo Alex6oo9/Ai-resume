@@ -157,34 +157,75 @@ export const buildResume = async (
       await generateResume(formData);
 
     const templateId = rawFormData.templateId || 'modern_minimal';
+    const resumeId = rawFormData.resumeId as string | undefined;
 
-    // Insert into resumes table
-    const result = await pool.query(
-      `INSERT INTO resumes (user_id, parsed_text, target_role, target_country, target_city, match_percentage, ai_analysis, template_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        userId,
-        resumeText,
-        formData.targetRole,
-        formData.targetCountry,
-        formData.targetCity || null,
-        matchPercentage,
-        JSON.stringify(aiAnalysis),
-        templateId,
-      ]
-    );
+    if (resumeId) {
+      // Verify ownership
+      const existing = await pool.query(
+        'SELECT id FROM resumes WHERE id = $1 AND user_id = $2',
+        [resumeId, userId]
+      );
+      if (existing.rows.length === 0) {
+        res.status(404).json({ error: 'Resume not found' });
+        return;
+      }
 
-    const resume = result.rows[0];
+      // Update existing resume
+      const result = await pool.query(
+        `UPDATE resumes
+         SET parsed_text=$1, target_role=$2, target_country=$3, target_city=$4,
+             match_percentage=$5, ai_analysis=$6, template_id=$7, updated_at=NOW()
+         WHERE id=$8
+         RETURNING *`,
+        [
+          resumeText,
+          formData.targetRole,
+          formData.targetCountry,
+          formData.targetCity || null,
+          matchPercentage,
+          JSON.stringify(aiAnalysis),
+          templateId,
+          resumeId,
+        ]
+      );
 
-    // Store form data in resume_data table (use raw data to preserve frontend structure)
-    await pool.query(
-      `INSERT INTO resume_data (resume_id, form_data)
-       VALUES ($1, $2)`,
-      [resume.id, JSON.stringify(rawFormData)]
-    );
+      // Upsert resume_data
+      await pool.query(
+        `INSERT INTO resume_data (resume_id, form_data) VALUES ($1, $2)
+         ON CONFLICT (resume_id) DO UPDATE SET form_data = $2`,
+        [resumeId, JSON.stringify(rawFormData)]
+      );
 
-    res.status(201).json({ resume });
+      res.status(200).json({ resume: result.rows[0] });
+    } else {
+      // Insert new resume
+      const result = await pool.query(
+        `INSERT INTO resumes (user_id, parsed_text, target_role, target_country, target_city, match_percentage, ai_analysis, template_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          userId,
+          resumeText,
+          formData.targetRole,
+          formData.targetCountry,
+          formData.targetCity || null,
+          matchPercentage,
+          JSON.stringify(aiAnalysis),
+          templateId,
+        ]
+      );
+
+      const resume = result.rows[0];
+
+      // Store form data in resume_data table (use raw data to preserve frontend structure)
+      await pool.query(
+        `INSERT INTO resume_data (resume_id, form_data)
+         VALUES ($1, $2)`,
+        [resume.id, JSON.stringify(rawFormData)]
+      );
+
+      res.status(201).json({ resume });
+    }
   } catch (err) {
     next(err);
   }

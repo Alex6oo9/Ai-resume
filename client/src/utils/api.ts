@@ -4,15 +4,44 @@ import { flushSync } from 'react-dom';
 import React from 'react';
 import ResumeTemplateSwitcher from '../components/templates/ResumeTemplateSwitcher';
 import type { Template, SubscriptionTier } from '../types/template.types';
-import type { ResumeFormData } from '../types';
+import type { ResumeFormData, GenerateCoverLetterPayload } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Connectivity event helpers
+function dispatchServerDown(code?: string) {
+  window.dispatchEvent(new CustomEvent('server:down', { detail: { code } }));
+}
+function dispatchServerUp() {
+  window.dispatchEvent(new CustomEvent('server:up'));
+}
+function dispatchServerError(status: number) {
+  window.dispatchEvent(new CustomEvent('server:error', { detail: { status } }));
+}
+
+api.interceptors.response.use(
+  (response) => {
+    dispatchServerUp();
+    return response;
+  },
+  (error) => {
+    if (!error.response) {
+      // Network error or timeout — server unreachable
+      dispatchServerDown(error.code);
+    } else if (error.response.status >= 500) {
+      dispatchServerError(error.response.status);
+    }
+    // 401/403 pass through silently — handled by individual callers
+    return Promise.reject(error);
+  }
+);
 
 export async function uploadResume(formData: FormData, options?: { signal?: AbortSignal }) {
   const response = await api.post('/resume/upload', formData, {
@@ -208,6 +237,61 @@ export async function forgotPassword(email: string): Promise<{ message: string }
 
 export async function resetPassword(token: string, password: string): Promise<{ message: string }> {
   const response = await api.post('/auth/reset-password', { token, password });
+  return response.data;
+}
+
+// Cover Letter API functions
+export async function getCoverLetter(id: string) {
+  const response = await api.get(`/cover-letter/${id}`);
+  return response.data;
+}
+
+export async function generateCoverLetter(payload: GenerateCoverLetterPayload) {
+  const response = await api.post('/cover-letter/generate', payload);
+  return response.data;
+}
+
+export async function saveCoverLetter(id: string, content: string) {
+  const response = await api.put(`/cover-letter/${id}`, { content });
+  return response.data;
+}
+
+export async function extractKeywords(payload: Record<string, unknown>, jobDescription?: string) {
+  const response = await api.post('/cover-letter/extract-keywords', { ...payload, jobDescription });
+  return response.data;
+}
+
+export async function listCoverLetters() {
+  const response = await api.get('/cover-letter/');
+  return response.data;
+}
+
+export async function listCoverLettersByResume(resumeId: string) {
+  const response = await api.get(`/cover-letter/resume/${resumeId}`);
+  return response.data;
+}
+
+export async function regenerateCoverLetter(id: string, payload: GenerateCoverLetterPayload) {
+  const response = await api.post(`/cover-letter/${id}/regenerate`, payload);
+  return response.data;
+}
+
+export async function deleteCoverLetter(id: string) {
+  const response = await api.delete(`/cover-letter/${id}`);
+  return response.data;
+}
+
+export async function parseResumeText(file: File): Promise<{ parsedText: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/resume/parse-text', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function improveCoverLetter(id: string, payload: Record<string, unknown>) {
+  const response = await api.post(`/cover-letter/${id}/improve`, payload);
   return response.data;
 }
 

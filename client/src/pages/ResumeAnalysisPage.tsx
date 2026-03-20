@@ -189,8 +189,8 @@ export default function ResumeAnalysisPage() {
     return (
       <div className="mx-auto max-w-4xl px-4 py-12">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 w-64 rounded bg-gray-200" />
-          <div className="h-48 rounded bg-gray-200" />
+          <div className="h-8 w-64 rounded bg-muted" />
+          <div className="h-48 rounded bg-muted" />
         </div>
       </div>
     );
@@ -214,9 +214,9 @@ export default function ResumeAnalysisPage() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Resume Analysis</h1>
+          <h1 className="text-2xl font-bold text-foreground">Resume Analysis</h1>
           {targetRole && (
-            <p className="text-sm text-gray-500">Target: {targetRole}</p>
+            <p className="text-sm text-muted-foreground">Target: {targetRole}</p>
           )}
           {jobDescription && (
             <p className="text-xs text-green-600 mt-0.5">Analyzed against job description</p>
@@ -227,7 +227,7 @@ export default function ResumeAnalysisPage() {
             onClick={() => {
               setShowReanalyze((prev) => !prev);
             }}
-            className="rounded-md border border-indigo-300 bg-white px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50"
+            className="rounded-md border border-indigo-300 bg-card px-3 py-1.5 text-sm text-indigo-600 hover:bg-primary/5"
           >
             Re-analyze
           </button>
@@ -244,12 +244,12 @@ export default function ResumeAnalysisPage() {
         <div className="mb-4">
           <button
             onClick={() => setShowPdf((prev) => !prev)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:bg-muted/50"
           >
             {showPdf ? 'Hide Original Resume ↑' : 'View Original Resume ↓'}
           </button>
           {showPdf && (
-            <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+            <div className="mt-3 overflow-hidden rounded-lg border border-border shadow-sm">
               <iframe
                 src={`/api/resume/${id}/file`}
                 title="Original Resume"
@@ -264,16 +264,16 @@ export default function ResumeAnalysisPage() {
 
       {showReanalyze && (
         <div className="mb-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-indigo-800">Re-analyze Resume</h2>
+          <h2 className="text-sm font-semibold text-foreground">Re-analyze Resume</h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-foreground">
               Target Role
             </label>
             <input
               type="text"
               value={reanalyzeRole}
               onChange={(e) => setReanalyzeRole(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               placeholder="e.g. Software Engineer"
             />
           </div>
@@ -294,12 +294,12 @@ export default function ResumeAnalysisPage() {
                   maxLength={JD_MAX_LENGTH}
                   value={reanalyzeJd}
                   onChange={(e) => setReanalyzeJd(e.target.value)}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="block w-full rounded-md border border-border px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   placeholder="Paste the job posting here…"
                 />
                 <p
                   className={`mt-1 text-right text-xs ${
-                    reanalyzeJd.length >= JD_MAX_LENGTH ? 'text-red-600' : 'text-gray-500'
+                    reanalyzeJd.length >= JD_MAX_LENGTH ? 'text-red-600' : 'text-muted-foreground'
                   }`}
                 >
                   {reanalyzeJd.length}/{JD_MAX_LENGTH}
@@ -318,7 +318,7 @@ export default function ResumeAnalysisPage() {
             <button
               type="button"
               onClick={() => setShowReanalyze(false)}
-              className="text-sm text-gray-500 hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
             >
               Cancel
             </button>
@@ -354,8 +354,8 @@ export default function ResumeAnalysisPage() {
         />
 
         {history.length > 1 && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Analysis History</h2>
+          <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">Analysis History</h2>
             <div className="space-y-2">
               {history.map((entry) => {
                 const isActive = entry.id === activeHistoryId;
@@ -374,11 +374,11 @@ export default function ResumeAnalysisPage() {
                     className={`w-full rounded-md border px-4 py-3 text-left text-sm transition-colors ${
                       isActive
                         ? 'border-indigo-300 bg-indigo-50'
-                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                        : 'border-border bg-card hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`font-medium ${isActive ? 'text-indigo-800' : 'text-gray-800'}`}>
+                      <span className={`font-medium ${isActive ? 'text-foreground' : 'text-foreground'}`}>
                         {entry.target_role || 'Unknown role'}
                       </span>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -391,7 +391,7 @@ export default function ResumeAnalysisPage() {
                         {entry.match_percentage}%
                       </span>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
+                    <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{new Date(entry.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                       {entry.job_description && (
                         <span className="truncate max-w-xs">

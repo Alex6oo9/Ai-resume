@@ -1,78 +1,78 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Globe, Plus, X, ChevronDown, CheckCircle2, Trash2, GripVertical } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ResumeFormData, LanguageSkill } from '../../../types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const MAX_CATEGORIES = 5;
 
 interface Props {
   data: ResumeFormData;
   onChange: (data: ResumeFormData) => void;
-  skillSuggestions?: string[];
-  isGeneratingSkills?: boolean;
-  onRegenerateSkills?: () => void;
+  suggestions?: string[];
+  isGenerating?: boolean;
+  generationError?: string | null;
+  targetRole?: string;
+  targetIndustry?: string;
+  onRegenerate?: () => void;
 }
-
-// Inline SVG icons
-const SparklesIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-  </svg>
-);
-
-const GripVerticalIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-    <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
-    <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-    <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
-  </svg>
-);
-
-const CheckCircleIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const GlobeIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const PlusIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-  </svg>
-);
-
-const XIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-
-const TrashIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
 
 export default function SkillsStep({
   data,
   onChange,
-  skillSuggestions = [],
-  isGeneratingSkills = false,
-  onRegenerateSkills,
+  suggestions: _skillSuggestions = [],
+  isGenerating: isGeneratingSkills = false,
+  onRegenerate: onRegenerateSkills,
 }: Props) {
   const [skillInputs, setSkillInputs] = useState<Record<number, string>>({});
   const [langInput, setLangInput] = useState('');
   const [langProficiency, setLangProficiency] = useState<LanguageSkill['proficiency']>('fluent');
 
-  const categories = data.skills.categories;
+  const categories = data.skills.technical;
 
-  const isSkillAdded = (skill: string) =>
-    categories.some((cat) =>
-      cat.items.some((item) => item.toLowerCase() === skill.toLowerCase())
-    );
+  const [openCategories, setOpenCategories] = useState<Set<number>>(
+    () => new Set(categories.map((_, i) => i))
+  );
+
+  const toggleCategory = (index: number) => {
+    setOpenCategories(prev => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setOpenCategories(prev => {
+      const next = new Set(prev);
+      categories.forEach((_, i) => next.add(i));
+      return next;
+    });
+  }, [categories.length]);
+
+  const PROFICIENCIES: { value: LanguageSkill['proficiency']; label: string }[] = [
+    { value: 'native', label: 'Native' },
+    { value: 'fluent', label: 'Fluent' },
+    { value: 'professional', label: 'Professional' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'basic', label: 'Basic' },
+  ];
+
+  const PROFICIENCY_DOT: Record<LanguageSkill['proficiency'], string> = {
+    native:       'bg-emerald-500',
+    fluent:       'bg-blue-500',
+    professional: 'bg-cyan-500',
+    intermediate: 'bg-amber-500',
+    basic:        'bg-zinc-400',
+  };
 
   const addSkillToCategory = (catIndex: number, skillName: string) => {
     const trimmed = skillName.trim();
@@ -83,36 +83,46 @@ export default function SkillsStep({
     const newCats = categories.map((c, i) =>
       i === catIndex ? { ...c, items: [...c.items, trimmed] } : c
     );
-    onChange({ ...data, skills: { ...data.skills, categories: newCats } });
+    onChange({ ...data, skills: { ...data.skills, technical: newCats } });
   };
 
   const removeSkillFromCategory = (catIndex: number, itemIndex: number) => {
     const newCats = categories.map((c, i) =>
       i === catIndex ? { ...c, items: c.items.filter((_, j) => j !== itemIndex) } : c
     );
-    onChange({ ...data, skills: { ...data.skills, categories: newCats } });
+    onChange({ ...data, skills: { ...data.skills, technical: newCats } });
   };
 
   const updateCategoryName = (catIndex: number, name: string) => {
     const newCats = categories.map((c, i) =>
       i === catIndex ? { ...c, category: name } : c
     );
-    onChange({ ...data, skills: { ...data.skills, categories: newCats } });
+    onChange({ ...data, skills: { ...data.skills, technical: newCats } });
   };
 
   const addCategory = () => {
     if (categories.length >= MAX_CATEGORIES) return;
+    const newIndex = categories.length;
     onChange({
       ...data,
-      skills: { ...data.skills, categories: [...categories, { category: '', items: [] }] },
+      skills: { ...data.skills, technical: [...categories, { category: '', items: [] }] },
     });
+    setOpenCategories(prev => new Set([...prev, newIndex]));
   };
 
   const removeCategory = (catIndex: number) => {
     if (categories.length <= 1) return;
     onChange({
       ...data,
-      skills: { ...data.skills, categories: categories.filter((_, i) => i !== catIndex) },
+      skills: { ...data.skills, technical: categories.filter((_, i) => i !== catIndex) },
+    });
+    setOpenCategories(prev => {
+      const next = new Set<number>();
+      prev.forEach(i => {
+        if (i < catIndex) next.add(i);
+        else if (i > catIndex) next.add(i - 1);
+      });
+      return next;
     });
   };
 
@@ -152,27 +162,29 @@ export default function SkillsStep({
   };
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl flex flex-col gap-6">
       {/* AI Suggestion Banner */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-            <SparklesIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-indigo-900">AI Skill Suggestions</p>
-            <p className="text-xs text-indigo-500">Role-specific suggestions for your resume</p>
-          </div>
+      <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 dark:from-indigo-950/50 dark:via-purple-950/40 dark:to-indigo-950/50 border border-indigo-100 dark:border-indigo-800/40 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+        <div>
+          <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 mb-1 flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-indigo-600" /> AI Skill Suggestions
+          </h3>
+          <p className="text-xs text-indigo-700/70 dark:text-indigo-400/70">
+            Let AI scan your experience and suggest the most relevant skills for your industry.
+          </p>
+          {!isGeneratingSkills && categories.length > 0 && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              Skills auto-filled — edit freely or regenerate
+            </p>
+          )}
         </div>
-        <button
+        <Button
           type="button"
+          size="sm"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white border-none shadow-md shadow-indigo-200 gap-2 shrink-0"
           onClick={onRegenerateSkills}
           disabled={isGeneratingSkills}
-          className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold shadow-md shadow-indigo-200 transition-colors ${
-            isGeneratingSkills
-              ? 'cursor-not-allowed bg-indigo-400 text-white'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700'
-          }`}
         >
           {isGeneratingSkills ? (
             <>
@@ -181,225 +193,244 @@ export default function SkillsStep({
             </>
           ) : (
             <>
-              <SparklesIcon className="h-3.5 w-3.5" />
-              Suggest with AI
+              <Sparkles className="w-4 h-4" /> {categories.length > 0 ? 'Regenerate' : 'Suggest Skills'}
             </>
           )}
-        </button>
+        </Button>
       </div>
-
-      {/* AI Suggestion Chips */}
-      {skillSuggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-1">
-          {skillSuggestions.map((suggestion, index) => {
-            const added = isSkillAdded(suggestion);
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() => {
-                  if (!added && categories.length > 0) {
-                    addSkillToCategory(0, suggestion);
-                  }
-                }}
-                disabled={added}
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all ${
-                  added
-                    ? 'cursor-default border-green-300 bg-green-100 text-green-700'
-                    : 'cursor-pointer border-indigo-200 bg-indigo-600/10 text-indigo-700 hover:border-indigo-400 hover:bg-indigo-100'
-                }`}
-              >
-                {added ? '✓ ' : ''}
-                {suggestion}
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {/* Category Cards */}
-      <div className="space-y-4">
-        {categories.map((cat, catIndex) => (
-          <div
-            key={catIndex}
-            className="group overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-sm transition-all duration-200 hover:border-primary/30 hover:shadow-md"
-          >
-            {/* Card Header */}
-            <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-3 py-2.5">
-              <GripVerticalIcon className="h-4 w-4 flex-shrink-0 cursor-grab text-muted-foreground/50 hover:text-muted-foreground" />
-              <input
-                type="text"
-                value={cat.category}
-                onChange={(e) => updateCategoryName(catIndex, e.target.value)}
-                placeholder="Category name (e.g., Frontend, Patient Care, Analytics)"
-                className="h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-base font-semibold text-foreground placeholder:text-muted-foreground transition-colors hover:bg-muted/50 focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              {categories.length > 1 && (
+      <div className="flex flex-col gap-6">
+        <AnimatePresence>
+          {categories.map((cat, catIndex) => {
+            const isOpen = openCategories.has(catIndex);
+            return (
+              <motion.div
+                key={catIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="rounded-xl border border-border bg-card shadow-sm overflow-hidden group transition-all duration-200 hover:border-primary/30 hover:shadow-md"
+              >
+                {/* Accordion Trigger */}
                 <button
                   type="button"
-                  onClick={() => removeCategory(catIndex)}
-                  className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-                  title="Remove category"
+                  onClick={() => toggleCategory(catIndex)}
+                  className="flex w-full items-center justify-between py-4 px-5 font-medium transition-all hover:bg-muted/30"
                 >
-                  <XIcon className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Card Body */}
-            <div className="space-y-4 p-4">
-              {/* Skills chips */}
-              <div className="flex min-h-[40px] flex-wrap items-center gap-2">
-                {cat.items.length === 0 ? (
-                  <span className="px-1 text-sm italic text-muted-foreground">
-                    No skills yet — add one below
-                  </span>
-                ) : (
-                  cat.items.map((item, itemIndex) => (
-                    <span
-                      key={itemIndex}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 shadow-sm transition-all"
-                    >
-                      <CheckCircleIcon className="h-3.5 w-3.5 opacity-70" />
-                      {item}
-                      <button
-                        type="button"
-                        onClick={() => removeSkillFromCategory(catIndex, itemIndex)}
-                        className="ml-0.5 rounded-full p-0.5 text-indigo-300 transition-colors hover:bg-red-50 hover:text-red-500"
-                        title="Remove skill"
-                      >
-                        <XIcon className="h-3 w-3" />
-                      </button>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <GripVertical className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                    <input
+                      type="text"
+                      value={cat.category}
+                      onChange={(e) => updateCategoryName(catIndex, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder="Category name..."
+                      className="truncate text-base font-semibold bg-transparent border-none outline-none focus:ring-0 focus:border-b focus:border-primary/50 min-w-0 w-full cursor-text"
+                    />
+                    <span className="shrink-0 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 min-w-[1.25rem]">
+                      {cat.items.length}
                     </span>
-                  ))
-                )}
-              </div>
-
-              {/* Add skill input */}
-              <div className="relative flex gap-2">
-                <input
-                  type="text"
-                  value={skillInputs[catIndex] || ''}
-                  onChange={(e) => setSkillInputs({ ...skillInputs, [catIndex]: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addSkillToCategory(catIndex, skillInputs[catIndex] || '');
-                      setSkillInputs({ ...skillInputs, [catIndex]: '' });
-                    }
-                  }}
-                  placeholder="Add a skill and press Enter..."
-                  className="w-full bg-muted/50 rounded-xl py-2 pl-3 pr-20 border border-transparent text-sm text-foreground shadow-inner placeholder:text-muted-foreground transition-colors focus-visible:bg-background focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    addSkillToCategory(catIndex, skillInputs[catIndex] || '');
-                    setSkillInputs({ ...skillInputs, [catIndex]: '' });
-                  }}
-                  className="absolute bottom-1 right-1 top-1 rounded-md bg-indigo-600 px-3 text-sm font-semibold text-white hover:bg-indigo-700"
-                >
-                  Add
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    {categories.length > 1 && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); removeCategory(catIndex); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeCategory(catIndex); } }}
+                        className="h-8 w-8 rounded-md inline-flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
+                        aria-label="Delete category"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </span>
+                    )}
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                  </div>
                 </button>
-              </div>
-            </div>
-          </div>
-        ))}
 
-        {/* Add Category button */}
-        {categories.length < MAX_CATEGORIES && (
-          <button
-            type="button"
-            onClick={addCategory}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-6 text-sm text-muted-foreground transition-all hover:border-primary hover:text-primary hover:bg-primary/5"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Add Category
-          </button>
-        )}
+                {/* Accordion Content */}
+                {isOpen && (
+                  <div className="px-5 pb-5 pt-2 grid grid-cols-1 gap-6">
+                    {/* Skill Tags + Input */}
+                    <div>
+                      <div className="flex flex-wrap gap-2 mt-1 min-h-[40px] items-start">
+                        {cat.items.length === 0 && (
+                          <span className="text-sm text-muted-foreground italic px-2 py-1">
+                            No skills added yet — type below and press Enter or Add.
+                          </span>
+                        )}
+                        <AnimatePresence>
+                          {cat.items.map((skill, skillIndex) => (
+                            <motion.span
+                              key={`${skill}-${skillIndex}`}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              layout
+                              className="group/skill flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                              {skill}
+                              <button
+                                type="button"
+                                onClick={() => removeSkillFromCategory(catIndex, skillIndex)}
+                                className="h-4 w-4 rounded-full inline-flex items-center justify-center opacity-50 group-hover/skill:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all cursor-pointer"
+                                aria-label={`Remove ${skill}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </motion.span>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Skill Input Row */}
+                      <div className="relative mt-3">
+                        <Input
+                          className="bg-background pr-20"
+                          placeholder="Add a skill (e.g. React, Python) and press Enter..."
+                          value={skillInputs[catIndex] || ''}
+                          onChange={(e) => setSkillInputs({ ...skillInputs, [catIndex]: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addSkillToCategory(catIndex, skillInputs[catIndex] || '');
+                              setSkillInputs({ ...skillInputs, [catIndex]: '' });
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-3 gap-1.5"
+                          onClick={() => {
+                            addSkillToCategory(catIndex, skillInputs[catIndex] || '');
+                            setSkillInputs({ ...skillInputs, [catIndex]: '' });
+                          }}
+                          disabled={!skillInputs[catIndex]?.trim()}
+                        >
+                          <Plus className="w-3 h-3" /> Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
 
-      {/* Languages Section */}
-      <div className="mt-10 border-t border-border pt-6">
-        <div className="mb-1 flex items-center gap-2">
-          <GlobeIcon className="h-5 w-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-foreground">Languages</h3>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">Add languages you speak and your proficiency level</p>
+      {categories.length < MAX_CATEGORIES && (
+        <button
+          type="button"
+          onClick={addCategory}
+          className="w-full border-dashed border-2 border-border hover:border-primary hover:bg-primary/5 hover:text-primary transition-colors py-6 text-muted-foreground flex items-center justify-center gap-2 rounded-lg"
+        >
+          <Plus className="w-5 h-5" /> Add New Skill Category
+        </button>
+      )}
 
-        <div className="rounded-xl border border-border bg-background p-4 shadow-sm space-y-4">
-          {/* Existing languages */}
+      {/* Languages Section */}
+      <div className="mt-10 pt-6 border-t border-border">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Globe className="w-5 h-5 text-primary" /> Languages
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Add languages you speak and your proficiency level.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
           {data.skills.languages.length > 0 && (
             <div className="space-y-2">
-              {data.skills.languages.map((lang, index) => (
-                <div key={index} className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
-                  <span className="bg-background border border-border rounded-lg px-3 py-1 text-sm font-semibold text-foreground">
-                    {lang.language}
-                  </span>
-                  <select
-                    value={lang.proficiency}
-                    onChange={(e) => updateLanguageProficiency(index, e.target.value)}
-                    className="ml-auto w-36 h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus-visible:border-primary focus-visible:outline-none"
+              <AnimatePresence>
+                {data.skills.languages.map((lang, index) => (
+                  <motion.div
+                    key={`${lang.language}-${index}`}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="group flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm hover:border-primary/30 hover:bg-card/80 transition-all duration-200"
                   >
-                    <option value="native">Native</option>
-                    <option value="fluent">Fluent</option>
-                    <option value="professional">Professional</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="basic">Basic</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => removeLanguage(index)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md text-red-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                    title="Remove language"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Globe className="w-4 h-4 text-primary shrink-0" />
+                      <span className="font-semibold text-sm text-foreground truncate">{lang.language}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${PROFICIENCY_DOT[lang.proficiency]}`} />
+                      <Select
+                        value={lang.proficiency}
+                        onValueChange={(val) => updateLanguageProficiency(index, val)}
+                      >
+                        <SelectTrigger className="h-8 w-[130px] text-xs border-border/60">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PROFICIENCIES.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => removeLanguage(index)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
 
-          {/* Add language controls */}
-          <div className="flex flex-col gap-1">
-          <div className="hidden sm:flex gap-2 px-1 text-xs font-medium text-muted-foreground">
-            <span className="flex-1">Language</span>
-            <span className="w-40">Proficiency</span>
-            <span className="w-[76px]" />
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="text"
-              value={langInput}
-              onChange={(e) => setLangInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addLanguage();
-                }
-              }}
-              placeholder="e.g., English, Thai, Spanish"
-              className="flex-1 bg-muted/50 rounded-xl px-3 py-2 border border-transparent text-sm text-foreground shadow-inner placeholder:text-muted-foreground focus-visible:bg-background focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-            />
-            <select
+          <div className="flex gap-2 items-center mt-2 p-3 rounded-xl border border-dashed border-border bg-muted/20 hover:border-primary/40 transition-colors">
+            <div className="relative flex-1">
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-9 bg-background"
+                placeholder="e.g. English, Mandarin..."
+                value={langInput}
+                onChange={(e) => setLangInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addLanguage();
+                  }
+                }}
+              />
+            </div>
+            <Select
               value={langProficiency}
-              onChange={(e) => setLangProficiency(e.target.value as LanguageSkill['proficiency'])}
-              className="w-40 bg-muted/50 rounded-xl px-2 py-2 border border-transparent text-sm text-foreground focus-visible:bg-background focus-visible:border-primary focus-visible:outline-none"
+              onValueChange={(val) => setLangProficiency(val as LanguageSkill['proficiency'])}
             >
-              <option value="native">Native</option>
-              <option value="fluent">Fluent</option>
-              <option value="professional">Professional</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="basic">Basic</option>
-            </select>
-            <button
+              <SelectTrigger className="w-[130px] shrink-0 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROFICIENCIES.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
               type="button"
+              className="shrink-0 gap-2 px-4"
               onClick={addLanguage}
-              className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+              disabled={!langInput.trim()}
             >
-              Add
-            </button>
-          </div>
+              <Plus className="w-3.5 h-3.5" /> Add
+            </Button>
           </div>
         </div>
       </div>

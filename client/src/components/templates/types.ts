@@ -6,14 +6,10 @@ export interface ResumeTemplateProps {
 }
 
 export type TemplateId =
-  | 'modern_minimal'
-  | 'creative_bold'
-  | 'professional_classic'
-  | 'tech_focused'
-  | 'healthcare_pro'
-  | 'warm_creative'
-  | 'sleek_director'
+  | 'modern'
   | 'modern_yellow_split'
   | 'dark_ribbon_modern'
   | 'modern_minimalist_block'
-  | 'editorial_earth_tone';
+  | 'editorial_earth_tone'
+  | 'ats_clean'
+  | 'ats_lined';

@@ -1,13 +1,11 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useToastContext } from '../contexts/ToastContext';
+import { useAuthContext } from '../contexts/AuthContext';
 import { resendVerification } from '../utils/api';
 
-interface LoginPageProps {
-  onLogin: (email: string, password: string) => Promise<unknown>;
-}
-
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage() {
+  const { login: onLogin } = useAuthContext();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToastContext();
@@ -60,24 +58,24 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-900">
+        <h2 className="mb-6 text-center text-2xl font-bold text-foreground">
           Sign in to your account
         </h2>
 
         {verified && (
-          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
+          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/50 dark:text-green-400">
             Email verified successfully. You can now sign in.
           </div>
         )}
 
         {reset && (
-          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
+          <div className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/50 dark:text-green-400">
             Password reset successfully. Sign in with your new password.
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
             <p>{error}</p>
             {unverifiedEmail && (
               <button
@@ -93,7 +91,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -102,13 +100,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
                 Password
               </label>
               <Link to="/forgot-password" className="text-sm text-indigo-600 hover:text-indigo-500">
@@ -121,7 +119,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -134,7 +132,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Don't have an account?{' '}
           <Link to="/register" className="text-indigo-600 hover:text-indigo-500">
             Sign up

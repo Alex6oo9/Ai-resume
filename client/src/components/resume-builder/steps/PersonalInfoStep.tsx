@@ -1,9 +1,22 @@
+import { useRef, useState } from 'react';
+import ImageCropModal from '../ImageCropModal';
+import { Camera, Plus, Link as LinkIcon, Trash2, User, Target, Link2 } from 'lucide-react';
 import type { ResumeFormData, AdditionalLink } from '../../../types';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   data: ResumeFormData;
   onChange: (data: ResumeFormData) => void;
-  showPhotoUpload?: boolean;
+  photoSupported?: boolean;
 }
 
 const INDUSTRY_OPTIONS = [
@@ -22,389 +35,394 @@ const INDUSTRY_OPTIONS = [
   'Other',
 ];
 
-export default function PersonalInfoStep({ data, onChange, showPhotoUpload }: Props) {
-  const update = (field: keyof ResumeFormData, value: any) => {
+export default function PersonalInfoStep({ data, onChange, photoSupported = true }: Props) {
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
+
+  const update = (field: keyof ResumeFormData, value: string | undefined) => {
     onChange({ ...data, [field]: value });
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!photoSupported) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image must be under 2MB');
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPendingImageSrc(objectUrl);
+    e.target.value = '';
+  };
+
+  const handlePhotoClick = () => {
+    if (!photoSupported) return;
+    photoInputRef.current?.click();
+  };
+
+  const handleCropSave = (croppedDataUrl: string) => {
+    update('profilePhoto', croppedDataUrl);
+    if (pendingImageSrc) URL.revokeObjectURL(pendingImageSrc);
+    setPendingImageSrc(null);
+  };
+
+  const handleCropCancel = () => {
+    if (pendingImageSrc) URL.revokeObjectURL(pendingImageSrc);
+    setPendingImageSrc(null);
   };
 
   const addAdditionalLink = () => {
     const currentLinks = data.additionalLinks || [];
     if (currentLinks.length >= 3) return;
-
-    const newLink: AdditionalLink = {
-      id: Date.now().toString(),
-      label: '',
-      url: '',
-    };
-
-    update('additionalLinks', [...currentLinks, newLink]);
+    const newLink: AdditionalLink = { id: Date.now().toString(), label: '', url: '' };
+    onChange({ ...data, additionalLinks: [...currentLinks, newLink] });
   };
 
   const removeAdditionalLink = (id: string) => {
     const currentLinks = data.additionalLinks || [];
-    update(
-      'additionalLinks',
-      currentLinks.filter((link) => link.id !== id)
-    );
+    onChange({ ...data, additionalLinks: currentLinks.filter((l) => l.id !== id) });
   };
 
   const updateAdditionalLink = (id: string, field: 'label' | 'url', value: string) => {
     const currentLinks = data.additionalLinks || [];
-    update(
-      'additionalLinks',
-      currentLinks.map((link) => (link.id === id ? { ...link, [field]: value } : link))
-    );
+    onChange({
+      ...data,
+      additionalLinks: currentLinks.map((l) => (l.id === id ? { ...l, [field]: value } : l)),
+    });
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">
-          Personal Information
-        </h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Provide your contact details and target position
-        </p>
-      </div>
-
-      {/* Profile Photo — only shown for templates that support it */}
-      {showPhotoUpload && <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-medium text-gray-900">Profile Photo</h3>
-          <p className="text-xs text-gray-500">
-            Optional · Displayed only on photo-supporting templates (e.g. Bold Accent)
-          </p>
+    <>
+    <div className="space-y-4">
+      {/* Profile Photo */}
+      <div className={`rounded-xl border border-border overflow-hidden ${!photoSupported ? 'opacity-60' : ''}`}>
+        <div className={`flex items-center gap-2.5 px-4 py-3 bg-muted/30 border-b border-border/50 ${!photoSupported ? 'opacity-75' : ''}`}>
+          <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <Camera className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">Profile Photo</h3>
+          <span className="ml-auto text-xs text-muted-foreground">Optional</span>
         </div>
-
-        <div className="flex items-center gap-4">
-          {/* Preview */}
-          {data.profilePhoto ? (
-            <div className="relative flex-shrink-0">
-              <img
-                src={data.profilePhoto}
-                alt="Profile"
-                className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
-              />
+        <div className="p-4 flex items-center gap-6">
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+            disabled={!photoSupported}
+          />
+          <div
+            className={`relative h-20 w-20 rounded-full overflow-hidden border-2 border-border bg-background flex-shrink-0 group ${
+              photoSupported ? 'cursor-pointer' : 'cursor-not-allowed'
+            }`}
+            onClick={handlePhotoClick}
+          >
+            {data.profilePhoto ? (
+              <img src={data.profilePhoto} alt="Profile" className={`w-full h-full object-cover ${!photoSupported ? 'opacity-60' : ''}`} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Camera size={20} className={`${!photoSupported ? 'text-gray-300' : 'text-muted-foreground'}`} />
+              </div>
+            )}
+            {photoSupported && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera size={14} className="text-white" />
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`bg-background ${!photoSupported ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200 hover:bg-gray-100' : ''}`}
+              disabled={!photoSupported}
+              onClick={handlePhotoClick}
+            >
+              {data.profilePhoto ? 'Change Photo' : 'Upload Photo'}
+            </Button>
+            <p className="text-xs text-muted-foreground">JPG, PNG, WebP · max 2MB</p>
+            {data.profilePhoto && (
               <button
                 type="button"
-                onClick={() => update('profilePhoto', undefined)}
-                className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
+                disabled={!photoSupported}
+                onClick={() => photoSupported && update('profilePhoto', undefined)}
+                className={`text-sm transition-colors text-left px-1 rounded ${
+                  !photoSupported
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-destructive hover:bg-destructive/10'
+                }`}
               >
-                ×
+                Remove
               </button>
-            </div>
-          ) : (
-            <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 border-2 border-dashed border-gray-300 text-2xl text-gray-400">
-              👤
-            </div>
-          )}
-
-          <div>
-            <label className="cursor-pointer rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              {data.profilePhoto ? 'Change Photo' : 'Upload Photo'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 2 * 1024 * 1024) {
-                    alert('Image must be under 2MB');
-                    return;
-                  }
-                  const reader = new FileReader();
-                  reader.onload = (ev) => {
-                    update('profilePhoto', ev.target?.result as string);
-                  };
-                  reader.readAsDataURL(file);
-                }}
-              />
-            </label>
-            <p className="mt-1 text-xs text-gray-500">JPG, PNG, WebP — max 2MB</p>
+            )}
+            {!photoSupported && (
+              <p className="text-xs text-amber-400 font-bold mt-1 [text-shadow:0_0_8px_rgba(251,191,36,0.9),0_0_16px_rgba(251,191,36,0.5)]">
+                Profile photos are not supported by ATS templates
+              </p>
+            )}
           </div>
         </div>
-      </div>}
+      </div>
 
-      {/* Basic Contact Information */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-900">Contact Details</h3>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="fullName"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              value={data.fullName}
-              onChange={(e) => update('fullName', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+      {/* Contact Details */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-muted/30 border-b border-border/50">
+          <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <User className="w-3.5 h-3.5 text-primary" />
           </div>
+          <h3 className="text-sm font-semibold text-foreground">Contact Details</h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="">
+                Full Name <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="fullName"
+                placeholder="e.g. Jane Doe"
+                value={data.fullName}
+                onChange={(e) => update('fullName', e.target.value)}
+                className=""
+              />
+            </div>
 
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={data.email}
-              onChange={(e) => update('email', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="">
+                Email <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="jane@example.com"
+                value={data.email}
+                onChange={(e) => update('email', e.target.value)}
+                className=""
+              />
+            </div>
 
-          <div>
-            <label
-              htmlFor="phone"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Phone <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              value={data.phone}
-              onChange={(e) => update('phone', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="">
+                Phone <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1 (555) 000-0000"
+                value={data.phone}
+                onChange={(e) => update('phone', e.target.value)}
+                className=""
+              />
+            </div>
 
-          <div>
-            <label
-              htmlFor="city"
-              className="block text-sm font-medium text-gray-700"
-            >
-              City <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="city"
-              type="text"
-              value={data.city}
-              onChange={(e) => update('city', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="">
+                City <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="city"
+                placeholder="San Francisco"
+                value={data.city}
+                onChange={(e) => update('city', e.target.value)}
+                className=""
+              />
+            </div>
 
-          <div>
-            <label
-              htmlFor="country"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Country <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="country"
-              type="text"
-              value={data.country}
-              onChange={(e) => update('country', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <div className="space-y-1.5">
+              <Label className="">
+                Country <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="country"
+                placeholder="United States"
+                value={data.country}
+                onChange={(e) => update('country', e.target.value)}
+                className=""
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Target Position */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-900">Target Position</h3>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="targetRole"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Target Role <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="targetRole"
-              type="text"
-              value={data.targetRole}
-              onChange={(e) => update('targetRole', e.target.value)}
-              placeholder="e.g., Junior Data Analyst"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-muted/30 border-b border-border/50">
+          <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <Target className="w-3.5 h-3.5 text-primary" />
           </div>
+          <h3 className="text-sm font-semibold text-foreground">Target Position</h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <Label className="">
+                Target Role <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="targetRole"
+                placeholder="e.g. Frontend Developer"
+                value={data.targetRole}
+                onChange={(e) => update('targetRole', e.target.value)}
+                className=""
+              />
+            </div>
 
-          <div>
-            <label
-              htmlFor="targetIndustry"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Target Industry <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="targetIndustry"
-              value={data.targetIndustry}
-              onChange={(e) => update('targetIndustry', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Select industry</option>
-              {INDUSTRY_OPTIONS.map((industry) => (
-                <option key={industry} value={industry}>
-                  {industry}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="space-y-1.5">
+              <Label className="">
+                Industry <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Select
+                value={data.targetIndustry}
+                onValueChange={(val) => update('targetIndustry', val)}
+              >
+                <SelectTrigger id="targetIndustry" className="bg-background">
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDUSTRY_OPTIONS.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div>
-            <label
-              htmlFor="targetCountry"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Target Country <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="targetCountry"
-              type="text"
-              value={data.targetCountry}
-              onChange={(e) => update('targetCountry', e.target.value)}
-              placeholder="e.g., United States"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="">
+                Target Country <span className="text-red-400 normal-case tracking-normal">*</span>
+              </Label>
+              <Input
+                id="targetCountry"
+                placeholder="e.g. United States"
+                value={data.targetCountry}
+                onChange={(e) => update('targetCountry', e.target.value)}
+                className=""
+              />
+            </div>
 
-          <div>
-            <label
-              htmlFor="targetCity"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Target City (optional)
-            </label>
-            <input
-              id="targetCity"
-              type="text"
-              value={data.targetCity || ''}
-              onChange={(e) => update('targetCity', e.target.value)}
-              placeholder="e.g., San Francisco"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <div className="space-y-1.5">
+              <Label className="">
+                Target City
+                <span className="ml-1 normal-case tracking-normal font-normal text-muted-foreground/60">(optional)</span>
+              </Label>
+              <Input
+                id="targetCity"
+                placeholder="e.g. San Francisco"
+                value={data.targetCity || ''}
+                onChange={(e) => update('targetCity', e.target.value)}
+                className=""
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Professional Links */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-900">
-          Professional Links
-        </h3>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="linkedinUrl"
-              className="block text-sm font-medium text-gray-700"
-            >
-              LinkedIn Profile
-            </label>
-            <input
-              id="linkedinUrl"
-              type="url"
-              value={data.linkedinUrl || ''}
-              onChange={(e) => update('linkedinUrl', e.target.value)}
-              placeholder="https://linkedin.com/in/yourname"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-muted/30 border-b border-border/50">
+          <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center flex-shrink-0">
+            <Link2 className="w-3.5 h-3.5 text-primary" />
           </div>
-
-          <div>
-            <label
-              htmlFor="portfolioUrl"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Portfolio / Website
-            </label>
-            <input
-              id="portfolioUrl"
-              type="url"
-              value={data.portfolioUrl || ''}
-              onChange={(e) => update('portfolioUrl', e.target.value)}
-              placeholder="https://yourportfolio.com"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+          <h3 className="text-sm font-semibold text-foreground">Professional Links</h3>
         </div>
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <Label className="">
+                LinkedIn
+              </Label>
+              <div className="relative">
+                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  id="linkedinUrl"
+                  className="pl-9"
+                  placeholder="linkedin.com/in/username"
+                  value={data.linkedinUrl || ''}
+                  onChange={(e) => update('linkedinUrl', e.target.value)}
+                />
+              </div>
+            </div>
 
-        {/* Additional Links */}
-        {data.additionalLinks && data.additionalLinks.length > 0 && (
-          <div className="space-y-3">
-            {data.additionalLinks.map((link, index) => (
-              <div
-                key={link.id}
-                className="rounded-xl border border-blue-100 bg-blue-50/40 p-3"
-              >
-                <p className="text-xs font-medium text-blue-700/70 mb-2">
-                  Additional Link {index + 1}
-                </p>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <input
-                    type="text"
+            <div className="space-y-1.5">
+              <Label className="">
+                Portfolio / Website
+              </Label>
+              <div className="relative">
+                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  id="portfolioUrl"
+                  className="pl-9"
+                  placeholder="yourwebsite.com"
+                  value={data.portfolioUrl || ''}
+                  onChange={(e) => update('portfolioUrl', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Links */}
+          {data.additionalLinks && data.additionalLinks.length > 0 && (
+            <div className="space-y-2">
+              {data.additionalLinks.map((link, index) => (
+                <div
+                  key={link.id}
+                  className="flex items-center gap-2 p-2.5 bg-muted/20 rounded-lg border border-border/60"
+                >
+                  <span className="text-xs text-muted-foreground w-5 text-center flex-shrink-0">
+                    {index + 1}
+                  </span>
+                  <Input
                     value={link.label}
                     onChange={(e) => updateAdditionalLink(link.id, 'label', e.target.value)}
-                    placeholder="e.g. GitHub"
+                    placeholder="Label"
                     maxLength={30}
-                    className="w-36 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-28 bg-background text-xs"
                   />
-                  <div className="relative flex flex-1 min-w-0 items-center">
-                    <svg
-                      className="pointer-events-none absolute left-3 h-4 w-4 text-gray-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <input
-                      type="url"
+                  <div className="relative flex-1 min-w-0">
+                    <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
                       value={link.url}
                       onChange={(e) => updateAdditionalLink(link.id, 'url', e.target.value)}
-                      placeholder="https://…"
-                      className="block w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      placeholder="https://..."
+                      className="pl-8 bg-background text-xs"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeAdditionalLink(link.id)}
-                    aria-label="Remove link"
-                    className="flex-shrink-0 rounded-md px-2 py-2 text-gray-400 hover:text-red-500 transition-colors"
+                    className="p-1 text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {(!data.additionalLinks || data.additionalLinks.length < 3) && (
-          <button
-            type="button"
-            onClick={addAdditionalLink}
-            className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-blue-400 px-4 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            Add Another Link
-          </button>
-        )}
+          {(!data.additionalLinks || data.additionalLinks.length < 3) && (
+            <button
+              type="button"
+              onClick={addAdditionalLink}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-sm text-muted-foreground hover:text-foreground transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add Custom Link
+            </button>
+          )}
+        </div>
       </div>
     </div>
+
+    {pendingImageSrc && (
+      <ImageCropModal
+        imageSrc={pendingImageSrc}
+        onSave={handleCropSave}
+        onClose={handleCropCancel}
+      />
+    )}
+    </>
   );
 }

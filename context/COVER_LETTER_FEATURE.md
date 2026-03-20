@@ -1,103 +1,165 @@
-# Cover Letter Feature — Current State
+# Cover Letter Generator â€” Complete Feature Documentation
 
-> Last updated: 2026-03-13 (post-migration 027)
+> This document contains everything needed to replicate the Cover Letter Generator feature from scratch. It covers database schema, TypeScript types, API contracts, AI service logic (with full prompts), frontend architecture, and business rules.
 
 ---
 
 ## 1. Feature Overview
 
-AI-powered cover letter generator with two entry points:
+### Business Purpose
+Users generate ATS-optimized cover letters from their existing resumes + a pasted job description. The AI extracts keyword matches first (so the cover letter naturally weaves in missing JD terms), then writes the letter. Users can edit inline, revert to the AI original, and download as PDF or TXT.
 
-- `/cover-letter/new` — standalone mode with resume selector
-- `/cover-letter/new?resumeId=<uuid>` — pre-selected resume (e.g. launched from Dashboard or ResumeAnalysisPage)
+### Two Entry Points
+| Mode | URL | Behaviour |
+|------|-----|-----------|
+| **Standalone** | `/cover-letter/new` | Resume selector dropdown; user picks which of their resumes to base the letter on |
+| **Attached** (future / navigated) | `/cover-letter/new?resumeId=<uuid>` | Resume pre-selected; form pre-fills from resume data |
 
-### Resume Input Modes
-| Mode | Description |
-|------|-------------|
-| **Existing** | Pick from user's saved resumes in DB |
-| **Upload PDF** | Parse PDF on-the-fly → ephemeral `resumeText`; no DB write |
+In both cases the same `CoverLetterPage.tsx` is rendered. The difference is whether `selectedResumeId` starts populated.
 
-### Key Characteristics
-- **Multiple cover letters per resume** — no UNIQUE constraint (dropped migration 027); user can generate as many as they want
-- **Letter list** — displayed as tab chips in the right panel; clicking a chip switches `activeLetter`
-- **Progress UI** — 3-step: extract keywords → pause (badge preview) → generate
-- **Revert** — `generated_content` is frozen at generation time; `content` is the mutable editor copy
-- **Temporary letters** — when no saved resume is selected (upload mode or no `resumeId`); generated, shown in editor, not persisted to DB
+### User Flow (happy path)
+1. User selects resume â†’ fills job description + company + optional fields â†’ clicks **Generate Cover Letter**
+2. Frontend calls `POST /api/cover-letter/extract-keywords` (Step 1: scanning)
+3. Keywords returned â†’ displayed as green/red badge preview (Step 2: keyword-ready, 1.2 s pause)
+4. Frontend calls `POST /api/cover-letter/generate` with keywords injected (Step 3: writing)
+5. Letter appears in editable textarea; ATS keyword coverage badges shown below
+6. User edits text â†’ clicks **Save Changes** â†’ `PUT /api/cover-letter/:resumeId`
+7. User downloads PDF or TXT
+
+### Key Business Rules
+- **One cover letter per resume** â€” `UNIQUE(resume_id)` in DB; generate upserts
+- **Revert to AI original** â€” `generated_content` column is never overwritten on save; `content` is the mutable copy
+- **Keyword coverage badges** â€” live, computed client-side by `editableContent.toLowerCase().includes(keyword)` as user types
+- **Word-count colour feedback** â€” green 200â€“450 words, yellow 150â€“199 or 451â€“550, red otherwise
+- **Custom instructions** capped at 500 characters (both backend validator + frontend counter)
+- **Job description** capped at 5000 characters (frontend `maxLength` + backend validator)
+- **Confirm dialog** shown if user clicks Generate when a letter already exists (prevents accidental overwrite)
 
 ---
 
-## 2. Database Schema (current)
+## 2. Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| AI model | GPT-4o-mini (OpenAI) |
+| Keyword extraction | temp 0.3, `response_format: { type: 'json_object' }` |
+| Letter generation | temp 0.8, plain text output |
+| Backend | Node.js + Express 4 + TypeScript |
+| Database | PostgreSQL â€” raw `pg` pool, UUID PKs |
+| Auth | Passport.js session, `isAuthenticated` middleware |
+| Validation | express-validator (`body()` chain) |
+| Rate limiting | `aiLimiter` (10 req / 15 min per IP) applied to both `/extract-keywords` and `/generate` routes in `app.ts` |
+| Frontend | React 18 + TypeScript + TailwindCSS + Vite |
+| HTTP client | axios (baseURL `/api`, `withCredentials: true`) |
+| PDF export | Puppeteer via existing `POST /api/export/pdf-from-html` endpoint |
+
+---
+
+## 3. Database Schema
+
+### Migration: `server/src/migrations/022_create_cover_letters.ts`
 
 ```sql
-CREATE TABLE cover_letters (
+CREATE TABLE IF NOT EXISTS cover_letters (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  resume_id             UUID REFERENCES resumes(id) ON DELETE CASCADE,  -- nullable for temporary
+  resume_id             UUID NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
   user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  content               TEXT NOT NULL,
-  generated_content     TEXT NOT NULL,
+  content               TEXT NOT NULL,          -- mutable (user edits this)
+  generated_content     TEXT NOT NULL,          -- immutable AI output (for revert)
   tone                  VARCHAR(50) NOT NULL DEFAULT 'professional',
   word_count_target     VARCHAR(20) NOT NULL DEFAULT 'medium',
   company_name          VARCHAR(255),
   hiring_manager_name   VARCHAR(255),
-  job_title             VARCHAR(255),          -- added migration 027
   custom_instructions   TEXT,
   created_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-  -- NO UNIQUE constraint (dropped migration 027)
+  updated_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(resume_id)     -- one cover letter per resume
 );
-CREATE INDEX idx_cover_letters_resume_created ON cover_letters(resume_id, created_at DESC);
-CREATE INDEX idx_cover_letters_user_id ON cover_letters(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_cover_letters_resume_id ON cover_letters(resume_id);
+CREATE INDEX IF NOT EXISTS idx_cover_letters_user_id   ON cover_letters(user_id);
 ```
 
-### Migrations
-| Migration | Change |
-|-----------|--------|
-| 022 | Create `cover_letters` table with `UNIQUE(resume_id)` |
-| 027 | Drop `UNIQUE(resume_id)`, add `job_title VARCHAR(255)`, reindex to `idx_cover_letters_resume_created` |
+**Key design decisions:**
+- `UNIQUE(resume_id)` â€” generate uses `ON CONFLICT (resume_id) DO UPDATE` (upsert)
+- `ON DELETE CASCADE` â€” deleting a resume auto-deletes its cover letter
+- `content` vs `generated_content` â€” `content` is what the user saves edits to; `generated_content` is frozen at generation time and used for "Revert to AI original"
 
 ---
 
-## 3. TypeScript Types (current)
+## 4. TypeScript Interfaces
 
-### Client `CoverLetter` interface
+### Server â€” `server/src/types/coverLetter.types.ts`
 
 ```typescript
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal' | 'conversational';
+export type CoverLetterLength = 'short' | 'medium' | 'long';
+
+export interface GenerateCoverLetterRequest {
+  resumeId: string;
+  fullName: string;
+  targetRole: string;
+  targetLocation: string;
+  jobDescription: string;          // required; max 5000 chars
+  companyName: string;             // required
+  hiringManagerName?: string;      // optional; defaults to "Hiring Manager" in prompt
+  tone: CoverLetterTone;
+  wordCountTarget: CoverLetterLength;
+  matchedKeywords?: string[];      // from prior extract-keywords call
+  missingKeywords?: string[];
+  customInstructions?: string;     // max 500 chars
+}
+
+export interface CoverLetterRecord {
+  id: string;
+  resume_id: string;
+  user_id: string;
+  content: string;            // editable copy
+  generated_content: string;  // original AI output
+  tone: CoverLetterTone;
+  word_count_target: CoverLetterLength;
+  company_name: string | null;
+  hiring_manager_name: string | null;
+  custom_instructions: string | null;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### Client â€” `client/src/types/index.ts` (relevant additions)
+
+```typescript
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal' | 'conversational';
+export type CoverLetterLength = 'short' | 'medium' | 'long';
+export type ProgressStep = 'idle' | 'extracting' | 'keywords-ready' | 'generating' | 'done' | 'error';
+
 export interface CoverLetter {
-  id: string | null;               // null for temporary letters
-  resume_id: string | null;        // null for temporary letters
+  id: string;
+  resume_id: string;
   content: string;
   generated_content: string;
   tone: CoverLetterTone;
   word_count_target: CoverLetterLength;
   company_name: string | null;
   hiring_manager_name: string | null;
-  job_title: string | null;              // NEW (migration 027)
-  resume_target_role?: string;           // from JOIN in listCoverLettersByResume
   custom_instructions: string | null;
-  isTemporary?: boolean;                 // NEW — client-side flag (not persisted)
   created_at: string;
   updated_at: string;
 }
 
-export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal' | 'conversational';
-export type CoverLetterLength = 'short' | 'medium' | 'long';
-```
+export interface Keywords {
+  matched: string[];
+  missing: string[];
+}
 
-### `GenerateCoverLetterPayload`
-
-`resumeId` and `resumeText` are both optional — at least one must be provided (server validates):
-
-```typescript
 export interface GenerateCoverLetterPayload {
-  resumeId?: string;               // UUID of saved resume (omit for temporary)
-  resumeText?: string;             // raw text (upload mode, ephemeral)
+  resumeId: string;
   fullName: string;
-  targetRole?: string;
-  targetLocation?: string;
+  targetRole: string;
+  targetLocation: string;
   jobDescription: string;
   companyName: string;
   hiringManagerName?: string;
-  jobTitle?: string;
   tone: CoverLetterTone;
   wordCountTarget: CoverLetterLength;
   matchedKeywords?: string[];
@@ -108,347 +170,757 @@ export interface GenerateCoverLetterPayload {
 
 ---
 
-## 4. API Endpoints (current)
+## 5. API Endpoints
 
-All routes under `/api/cover-letter`. All require `isAuthenticated` middleware.
+All routes are mounted at `/api/cover-letter` in `server/src/app.ts`. All require authentication (`isAuthenticated` middleware).
+
+### Route file: `server/src/routes/coverLetter/index.ts`
 
 ```
-POST   /extract-keywords        → extractKeywords           (aiLimiter)
-GET    /                        → listCoverLetters           (all user's, limit 10)
-POST   /generate                → generateCoverLetter        (aiLimiter)
-GET    /resume/:resumeId        → listCoverLettersByResume
-GET    /:id                     → getCoverLetter             (by letter UUID)
-PUT    /:id                     → updateCoverLetter          (save edits)
-DELETE /:id                     → deleteCoverLetter
-POST   /:id/regenerate          → regenerateCoverLetter      (aiLimiter)
-POST   /:id/improve             → improveCoverLetter         (aiLimiter)
-```
-
-> **Note:** CRUD routes use `/:id` (the letter's UUID), NOT `/:resumeId`.
-
----
-
-### `POST /extract-keywords`
-
-Accepts `resumeId` (UUID) OR `resumeText` (string) — not both required.
-
-**Request:**
-```json
-{
-  "resumeId": "uuid-of-saved-resume",
-  "jobDescription": "We are looking for..."
-}
-```
-OR
-```json
-{
-  "resumeText": "John Doe\nSoftware Engineer\n...",
-  "jobDescription": "We are looking for..."
-}
-```
-
-**Response `200`:**
-```json
-{
-  "matchedKeywords": ["React", "TypeScript"],
-  "missingKeywords": ["Kubernetes", "GraphQL"]
-}
+POST   /api/cover-letter/extract-keywords   â†’ extractKeywords
+GET    /api/cover-letter/                   â†’ listCoverLetters
+POST   /api/cover-letter/generate           â†’ generateCoverLetter
+GET    /api/cover-letter/:resumeId          â†’ getCoverLetter
+PUT    /api/cover-letter/:resumeId          â†’ updateCoverLetter
+DELETE /api/cover-letter/:resumeId          â†’ deleteCoverLetter
 ```
 
 ---
 
-### `POST /generate`
+### `POST /api/cover-letter/extract-keywords`
 
-`resumeId` is optional — omit for a temporary letter (no DB write).
+**Rate limited** by `aiLimiter` (10 req/15 min per IP).
 
-**Request:**
+**Request body:**
 ```json
 {
-  "resumeId": "uuid",
+  "resumeId": "uuid-v4",
+  "jobDescription": "string (1â€“5000 chars)"
+}
+```
+
+**Validation rules (express-validator):**
+- `resumeId` â€” exists, isUUID
+- `jobDescription` â€” exists, isString, notEmpty, isLength max 5000
+
+**Controller logic:**
+1. Query `resumes` + LEFT JOIN `resume_data` for `resumeId` + `userId`
+2. Build `resumeText` from `parsed_text` (Path A) OR `form_data` (Path B) â€” see `getResumeText()` helper
+3. Call `extractKeywords({ resumeText, jobDescription })`
+4. Return `{ matchedKeywords: string[], missingKeywords: string[] }`
+
+**Response 200:**
+```json
+{
+  "matchedKeywords": ["React", "TypeScript", "REST APIs"],
+  "missingKeywords": ["Docker", "CI/CD", "GraphQL"]
+}
+```
+
+**Errors:**
+- `404` â€” resume not found or doesn't belong to user
+- `400` â€” resume has no parseable content (`"This resume has no content to extract keywords from..."`)
+- `400` â€” validation errors (express-validator returns 400, not 422)
+
+---
+
+### `POST /api/cover-letter/generate`
+
+**Rate limited** by `aiLimiter` (10 req / 15 min per IP).
+
+**Request body:**
+```json
+{
+  "resumeId": "uuid-v4",
   "fullName": "Jane Doe",
-  "jobDescription": "...",
+  "targetRole": "Software Engineer",
+  "targetLocation": "London, UK",
+  "jobDescription": "string (1â€“5000 chars)",
   "companyName": "Acme Corp",
-  "jobTitle": "Frontend Engineer",
+  "hiringManagerName": "John Smith",      // optional
   "tone": "professional",
   "wordCountTarget": "medium",
-  "matchedKeywords": ["React"],
-  "missingKeywords": ["GraphQL"],
-  "customInstructions": "Mention my open-source work."
+  "matchedKeywords": ["React", "TypeScript"],
+  "missingKeywords": ["Docker", "CI/CD"],
+  "customInstructions": "Mention I'm open to relocation"  // optional, max 500
 }
 ```
 
-**Response `201`** (persisted — resumeId provided):
+**Validation rules:**
+- `resumeId` â€” exists, isUUID
+- `fullName` â€” exists, isString, notEmpty
+- `targetRole` â€” exists, isString, notEmpty
+- `targetLocation` â€” exists, isString, notEmpty
+- `jobDescription` â€” exists, isString, notEmpty, max 5000
+- `companyName` â€” exists, isString, notEmpty
+- `tone` â€” isIn `['professional', 'enthusiastic', 'formal', 'conversational']`
+- `wordCountTarget` â€” isIn `['short', 'medium', 'long']`
+- `matchedKeywords` â€” optional, isArray
+- `missingKeywords` â€” optional, isArray
+- `hiringManagerName` â€” optional, isString, trim, max 255
+- `customInstructions` â€” optional, isString, max 500
+
+**Controller logic:**
+1. Query resume + form_data (same JOIN as extract-keywords)
+2. Build `resumeText` via `getResumeText()` helper
+3. Call `generateCoverLetter(params)` AI service
+4. Upsert into `cover_letters` with `ON CONFLICT (resume_id) DO UPDATE`
+   - Both `content` and `generated_content` set to the AI output on generate
+5. Return `{ coverLetter: CoverLetterRecord }`
+
+**Response 201:**
 ```json
 {
   "coverLetter": {
     "id": "uuid",
     "resume_id": "uuid",
-    "content": "...",
-    "generated_content": "...",
-    "job_title": "Frontend Engineer",
-    "..."
+    "user_id": "uuid",
+    "content": "Dear John Smith,\n\nI am excited...",
+    "generated_content": "Dear John Smith,\n\nI am excited...",
+    "tone": "professional",
+    "word_count_target": "medium",
+    "company_name": "Acme Corp",
+    "hiring_manager_name": "John Smith",
+    "custom_instructions": null,
+    "created_at": "2026-03-09T10:00:00Z",
+    "updated_at": "2026-03-09T10:00:00Z"
   }
 }
 ```
-
-**Response `200`** (temporary — no resumeId):
-```json
-{
-  "coverLetter": {
-    "id": null,
-    "resume_id": null,
-    "isTemporary": true,
-    "content": "...",
-    "generated_content": "...",
-    "..."
-  }
-}
-```
-
-- **No upsert** — always INSERTs a new row (no `ON CONFLICT`)
-- Temporary response: nothing written to DB
 
 ---
 
-### `GET /resume/:resumeId`
+### `GET /api/cover-letter/`
 
-Returns all cover letters for one resume, ordered by `updated_at DESC`.
+Returns the current user's cover letters (most recent 10), joined with `resumes.target_role`.
 
-**Response `200`:**
+**Response 200:**
 ```json
 {
   "coverLetters": [
-    {
-      "id": "uuid",
-      "resume_id": "uuid",
-      "resume_target_role": "Software Engineer",
-      "job_title": "Frontend Engineer",
-      "company_name": "Acme",
-      "tone": "professional",
-      "content": "...",
-      "generated_content": "...",
-      "created_at": "...",
-      "updated_at": "..."
-    }
+    { "id": "uuid", "resume_id": "uuid", "content": "...", "target_role": "Software Engineer", ... }
   ]
 }
 ```
 
----
-
-### `GET /:id`
-
-Returns a single cover letter by its UUID.
-
----
-
-### `PUT /:id`
-
-Saves user edits to `content` only. `generated_content` is never changed by this endpoint.
-
-**Request:**
-```json
-{ "content": "Edited cover letter text..." }
+**SQL:**
+```sql
+SELECT cl.*, r.target_role
+FROM cover_letters cl
+JOIN resumes r ON cl.resume_id = r.id
+WHERE r.user_id = $1
+ORDER BY cl.updated_at DESC
+LIMIT 10
 ```
 
 ---
 
-### `DELETE /:id`
+### `GET /api/cover-letter/:resumeId`
 
-Permanently deletes the cover letter.
+Fetches the single cover letter for a specific resume.
+
+**Response 200:**
+```json
+{ "coverLetter": { ...CoverLetterRecord } }
+```
+
+**Response 404:** `{ "message": "No cover letter found for this resume" }`
+
+**SQL:**
+```sql
+SELECT cl.*
+FROM cover_letters cl
+JOIN resumes r ON cl.resume_id = r.id
+WHERE cl.resume_id = $1 AND r.user_id = $2
+```
 
 ---
 
-### `POST /:id/regenerate`
+### `PUT /api/cover-letter/:resumeId`
 
-Re-runs AI generation for an existing letter. Updates both `content` AND `generated_content`.
+Saves user edits. Only updates `content` â€” never touches `generated_content`.
 
-**Request:**
+**Request body:**
 ```json
-{
-  "fullName": "Jane Doe",
-  "jobDescription": "...",
-  "companyName": "Acme",
-  "tone": "enthusiastic",
-  "wordCountTarget": "long"
+{ "content": "string (1â€“10000 chars)" }
+```
+
+**Validation:** `content` â€” exists, isString, notEmpty, max 10000
+
+**SQL:**
+```sql
+UPDATE cover_letters cl
+SET content = $1, updated_at = NOW()
+FROM resumes r
+WHERE cl.resume_id = r.id
+  AND cl.resume_id = $2
+  AND r.user_id = $3
+RETURNING cl.*
+```
+
+---
+
+### `DELETE /api/cover-letter/:resumeId`
+
+**SQL:**
+```sql
+DELETE FROM cover_letters cl
+USING resumes r
+WHERE cl.resume_id = r.id
+  AND cl.resume_id = $1
+  AND r.user_id = $2
+RETURNING cl.id
+```
+
+---
+
+## 6. Backend AI Services
+
+### 6a. `server/src/services/ai/keywordExtractor.ts`
+
+**Purpose:** Extract matched and missing keywords between resume and job description.
+
+**Config:**
+- Model: `gpt-4o-mini`
+- Temperature: `0.3`
+- Response format: `{ type: 'json_object' }` (JSON mode â€” guaranteed JSON output)
+
+**Input sanitization:**
+- `resumeText` â†’ `sanitizePromptInput(resumeText).slice(0, 3000)`
+- `jobDescription` â†’ `sanitizePromptInput(jobDescription).slice(0, 2000)`
+
+**System prompt:**
+```
+You are a keyword extraction assistant. Given a resume and job description, identify which keywords from the job description are already present in the resume (matchedKeywords) and which are missing (missingKeywords). Return a JSON object with exactly two arrays: "matchedKeywords" and "missingKeywords". Each keyword should be a short phrase (1-3 words). Return at most 10 matched and 10 missing keywords.
+```
+
+**User prompt:**
+```
+RESUME:
+{sanitizedResume}
+
+JOB DESCRIPTION:
+{sanitizedJd}
+```
+
+**Output parsing:**
+```typescript
+const parsed = JSON.parse(content);
+return {
+  matchedKeywords: Array.isArray(parsed.matchedKeywords) ? parsed.matchedKeywords : [],
+  missingKeywords: Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords : [],
+};
+```
+
+**Return type:** `{ matchedKeywords: string[]; missingKeywords: string[] }`
+
+---
+
+### 6b. `server/src/services/ai/coverLetterGenerator.ts`
+
+**Purpose:** Write a complete cover letter in plain text.
+
+**Config:**
+- Model: `gpt-4o-mini`
+- Temperature: `0.8` (higher for creative text)
+- No response_format (plain text expected)
+
+**Word count mapping:**
+```typescript
+const WORD_COUNT_MAP = { short: 150, medium: 250, long: 400 };
+```
+
+**Input sanitization / truncation:**
+- `jobDescription` â†’ `sanitizePromptInput(jobDescription).slice(0, 2000)`
+- `customInstructions` â†’ `sanitizePromptInput(customInstructions)` (if present)
+- `resumeText` â†’ `.slice(0, 3000)` (no sanitization â€” already from DB)
+
+**System prompt:**
+```
+You are an expert cover letter writer for fresh graduates applying to junior roles.
+Write in first person. Be specific and concise. Avoid generic openers like "I am writing to apply for". Never use filler phrases like "I am passionate about" without concrete evidence. Match the tone requested by the user.
+Output ONLY the cover letter text â€” no subject line, no metadata, no commentary.
+```
+
+**User prompt template:**
+```
+Write a cover letter for the following candidate.
+
+CANDIDATE NAME: {fullName}
+TARGET ROLE: {targetRole}
+LOCATION: {targetLocation}
+COMPANY: {companyName}
+HIRING MANAGER: {hiringManagerName || 'Hiring Manager'}
+
+CANDIDATE RESUME SUMMARY:
+{truncatedResumeText}
+
+JOB DESCRIPTION:
+{sanitizedJd}
+
+KEYWORDS ALREADY IN RESUME (naturally reference these): {matchedKeywords.join(', ') || 'None'}
+KEYWORDS MISSING FROM RESUME (weave these in naturally where truthful): {missingKeywords.join(', ') || 'None'}
+
+TONE: {tone}
+- professional: confident, polished, industry-standard language
+- enthusiastic: energetic and passionate while remaining professional
+- formal: conservative, no contractions, suitable for finance/law/government
+- conversational: warm and approachable, contractions OK, suitable for startups
+
+TARGET LENGTH: approximately {wordCount} words
+
+ADDITIONAL INSTRUCTIONS: {sanitizedInstructions || 'None'}
+```
+
+**Return type:** `Promise<string>` â€” the plain text cover letter
+
+---
+
+### `buildResumeTextFromFormData()` helper (in controller)
+
+When resume has no `parsed_text` (Path B â€” builder), the controller reconstructs a text representation from `form_data` JSONB:
+
+```typescript
+function buildResumeTextFromFormData(formData: any): string {
+  const lines: string[] = [];
+  if (formData.fullName) lines.push(formData.fullName);
+  if (formData.targetRole) lines.push(`Target Role: ${formData.targetRole}`);
+  if (formData.professionalSummary) lines.push(`Summary: ${formData.professionalSummary}`);
+  // experience entries: "role at company: responsibilities"
+  // skills.technical categories: "category: item1, item2"
+  // skills.soft: "Soft skills: skill1, skill2"
+  return lines.join('\n');
 }
 ```
 
-**Response `200`:**
-```json
-{ "coverLetter": { "...updatedRecord": true } }
+`getResumeText()` returns `parsed_text` if truthy, else falls back to `buildResumeTextFromFormData(form_data)`.
+
+---
+
+## 7. Controller Logic (complete SQL queries)
+
+### `extractKeywords` controller
+
+```typescript
+// 1. Ownership check + form_data JOIN
+SELECT r.*, rd.form_data
+FROM resumes r
+LEFT JOIN resume_data rd ON r.id = rd.resume_id
+WHERE r.id = $1 AND r.user_id = $2
+
+// 2. Call extractKeywordsService({ resumeText, jobDescription })
+// 3. Return result directly
+```
+
+### `generateCoverLetter` controller
+
+```typescript
+// 1. Same ownership query (with form_data JOIN)
+
+// 2. Call generateCoverLetterService(params)
+
+// 3. Upsert
+INSERT INTO cover_letters (resume_id, user_id, content, generated_content, tone, word_count_target, company_name, hiring_manager_name, custom_instructions)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (resume_id)
+DO UPDATE SET
+  content = EXCLUDED.content,
+  generated_content = EXCLUDED.generated_content,
+  tone = EXCLUDED.tone,
+  word_count_target = EXCLUDED.word_count_target,
+  company_name = EXCLUDED.company_name,
+  hiring_manager_name = EXCLUDED.hiring_manager_name,
+  custom_instructions = EXCLUDED.custom_instructions,
+  updated_at = NOW()
+RETURNING *
+```
+
+Note: both `content` and `generated_content` receive the same AI-generated value at generation time.
+
+### `listCoverLetters` controller
+
+```sql
+SELECT cl.*, r.target_role
+FROM cover_letters cl
+JOIN resumes r ON cl.resume_id = r.id
+WHERE r.user_id = $1
+ORDER BY cl.updated_at DESC
+LIMIT 10
+```
+
+### `getCoverLetter` controller
+
+```sql
+SELECT cl.*
+FROM cover_letters cl
+JOIN resumes r ON cl.resume_id = r.id
+WHERE cl.resume_id = $1 AND r.user_id = $2
+```
+
+### `updateCoverLetter` controller
+
+```sql
+UPDATE cover_letters cl
+SET content = $1, updated_at = NOW()
+FROM resumes r
+WHERE cl.resume_id = r.id
+  AND cl.resume_id = $2
+  AND r.user_id = $3
+RETURNING cl.*
+```
+
+### `deleteCoverLetter` controller
+
+```sql
+DELETE FROM cover_letters cl
+USING resumes r
+WHERE cl.resume_id = r.id
+  AND cl.resume_id = $1
+  AND r.user_id = $2
+RETURNING cl.id
 ```
 
 ---
 
-### `POST /:id/improve`
+## 8. Frontend Architecture
 
-Personalises the letter by weaving user-provided stories into `generated_content`. Updates both `content` and `generated_content`.
+### `client/src/hooks/useCoverLetter.ts`
 
-**Request:**
-```json
-{
-  "whyThisCompany": "I admire Acme's commitment to sustainability.",
-  "achievementToHighlight": "Led a team that reduced load time by 40%."
+**State machine:**
+
+```
+idle â†’ extracting â†’ keywords-ready â†’ generating â†’ done
+                                                 â†˜ error
+```
+
+**Hook return interface (`UseCoverLetterReturn`):**
+| Property | Type | Purpose |
+|----------|------|---------|
+| `coverLetter` | `CoverLetter \| null` | Currently loaded/generated letter |
+| `keywords` | `Keywords` | `{ matched: string[], missing: string[] }` from extract-keywords |
+| `progressStep` | `ProgressStep` | Current generation step |
+| `isLoading` | `boolean` | Initial fetch in progress |
+| `isSaving` | `boolean` | Save in progress |
+| `savedIndicator` | `boolean` | True for 2s after successful save |
+| `error` | `string \| null` | Error message |
+| `generate` | `(payload) => Promise<void>` | Runs extract-keywords then generate |
+| `save` | `(content: string) => Promise<void>` | Calls PUT to persist edits |
+| `reset` | `() => void` | Resets progressStep to 'idle', clears error |
+
+**`useEffect` on `resumeId`:**
+- Resets all state on every `resumeId` change
+- Fetches `GET /api/cover-letter/:resumeId`
+- 404 is silently ignored (no letter yet = valid state)
+- Uses `cancelled` flag to prevent state updates after unmount/re-render
+
+**`generate(payload)` flow:**
+```typescript
+setProgressStep('extracting');
+const res = await extractKeywordsApi(payload.resumeId, payload.jobDescription);
+setKeywords({ matched, missing });
+setProgressStep('keywords-ready');
+await sleep(1200);              // deliberate 1.2s pause so user sees the keyword preview
+setProgressStep('generating');
+const genRes = await generateCoverLetterApi({ ...payload, matchedKeywords, missingKeywords });
+setCoverLetter(genRes.data.coverLetter);
+setProgressStep('done');
+// catch â†’ setProgressStep('error'), setError(...)
+```
+
+**`save(content)` flow:**
+- Determines ID: `resumeId || coverLetter?.resume_id`
+- Calls `PUT /api/cover-letter/:resumeId`
+- Updates local `coverLetter.content`
+- Sets `savedIndicator = true` for 2000 ms
+
+**`reset()`:** Sets step back to `'idle'`, clears error.
+
+---
+
+### `client/src/pages/CoverLetterPage.tsx`
+
+**Layout:** Two-panel split â€” left (controls, fixed 384px), right (output, flex fill).
+
+**Left panel form fields:**
+| Field | Required | Constraint |
+|-------|----------|-----------|
+| Resume selector | Yes (for generation) | `<select>` from `listResumes()` |
+| Full Name | No | `maxLength={255}`, pre-fills from `user.name` |
+| Target Role | No | `maxLength={255}` |
+| Target Location | No | `maxLength={255}` |
+| Job Description | Yes | `maxLength={5000}`, char counter shown |
+| Company Name | Yes | `maxLength={255}` |
+| Hiring Manager | No | `maxLength={255}` |
+| Tone | No | Pill buttons: Professional / Enthusiastic / Formal / Conversational |
+| Length | No | Radio: Short (~150w) / Medium (~250w) / Long (~400w) |
+| Custom Instructions | No | `<textarea>`, 500-char limit with colour counter |
+
+**Generate button disabled when:**
+- `!selectedResumeId`
+- `!jobDescription.trim()`
+- `!companyName.trim()`
+- `customInstructions.length > 500`
+- `isGenerating` (any of extracting / keywords-ready / generating)
+
+**Right panel states (mutually exclusive):**
+| State | Condition |
+|-------|-----------|
+| Spinner | `isLoading` |
+| Empty state | `!isLoading && !showProgress && !showError && !showLetter` |
+| 3-step progress | `isGenerating` |
+| Error card | `progressStep === 'error'` |
+| Letter + controls | `coverLetter !== null && (step === 'idle' || step === 'done')` |
+
+**3-step progress UI:**
+- Step 1 "Scanning resume and job description" â€” active during `extracting`
+- Step 2 "Analyzing keyword matches" â€” active during `keywords-ready` (badge preview shown)
+- Step 3 "Writing your ATS-optimized cover letter" â€” active during `generating`
+
+**Letter output section:**
+- Editable `<textarea>` (font-mono, flex-1)
+- Word count with colour feedback (green/yellow/red)
+- "Revert to AI original" link â€” shown when `editableContent !== coverLetter.generated_content`
+- **ATS Keyword Coverage** badges â€” each keyword checked against `editableContent.toLowerCase()` live
+- Action bar: Save Changes / Download PDF / Download .txt
+
+**Regenerate confirm dialog:** Modal shown when user clicks Generate and `coverLetter !== null`.
+
+**PDF download:** Wraps `editableContent` in `<p>` tags, POSTs HTML to `POST /api/export/pdf-from-html`.
+
+**TXT download:** `new Blob([editableContent], { type: 'text/plain' })` â†’ anchor click.
+
+---
+
+## 9. Business Flow Diagrams
+
+### Generation Flow
+
+```
+User clicks "Generate Cover Letter"
+â”‚
+â”œâ”€ coverLetter exists? â†’ Show confirm dialog â†’ Cancel or Regenerate
+â”‚
+â–¼
+doGenerate()
+â”‚
+â”œâ”€ 1. POST /api/cover-letter/extract-keywords
+â”‚      â†’ progressStep = 'extracting'
+â”‚      â†’ returns { matchedKeywords, missingKeywords }
+â”‚      â†’ progressStep = 'keywords-ready' (badge preview shown)
+â”‚      â†’ sleep(1200ms)
+â”‚
+â”œâ”€ 2. POST /api/cover-letter/generate
+â”‚      â†’ progressStep = 'generating'
+â”‚      â†’ AI writes letter
+â”‚      â†’ DB upsert (content + generated_content = AI output)
+â”‚      â†’ returns { coverLetter }
+â”‚
+â””â”€ 3. progressStep = 'done'
+       â†’ coverLetter shown in textarea
+       â†’ ATS badges computed client-side
+```
+
+### Save Flow
+
+```
+User edits textarea â†’ editableContent state
+User clicks "Save Changes"
+â”‚
+â”œâ”€ PUT /api/cover-letter/:resumeId { content: editableContent }
+â”‚    â†’ only content column updated; generated_content unchanged
+â”‚
+â””â”€ savedIndicator = true (2s) â†’ "Saved âœ“" feedback
+```
+
+### Resume Switch Flow (resumeId changes)
+
+```
+User picks different resume from dropdown
+â”‚
+â”œâ”€ selectedResumeId state updated
+â”œâ”€ effectiveResumeId = selectedResumeId
+â”œâ”€ useCoverLetter(effectiveResumeId) effect fires
+â”‚    â†’ reset all state
+â”‚    â†’ GET /api/cover-letter/:resumeId
+â”‚         â†’ 404: no letter (valid) â†’ coverLetter stays null
+â”‚         â†’ 200: load existing letter â†’ coverLetter populated
+â””â”€ Right panel shows letter (or empty state)
+```
+
+---
+
+## 10. Validation Rules
+
+### Backend (express-validator â€” `server/src/routes/coverLetter/index.ts`)
+
+**Extract keywords:**
+- `resumeId`: UUID required
+- `jobDescription`: string, not empty, max 5000
+
+**Generate:**
+- `resumeId`: UUID required
+- `fullName`: string, not empty
+- `targetRole`: string, not empty
+- `targetLocation`: string, not empty
+- `jobDescription`: string, not empty, max 5000
+- `companyName`: string, not empty
+- `tone`: one of `professional | enthusiastic | formal | conversational`
+- `wordCountTarget`: one of `short | medium | long`
+- `matchedKeywords`: optional, array
+- `missingKeywords`: optional, array
+- `hiringManagerName`: optional, string, trim, max 255
+- `customInstructions`: optional, string, max 500
+
+**Update:**
+- `content`: string, not empty, max 10000
+
+### Frontend constraints
+
+| Field | Constraint | Where enforced |
+|-------|-----------|---------------|
+| Job description | `maxLength={5000}` HTML attr + char counter | `<textarea>` |
+| Custom instructions | 500 char warning + button disabled | `isCustomInstructionsTooLong` state |
+| Company name | Must not be empty | `isGenerateDisabled` check |
+| Resume | Must be selected | `isGenerateDisabled` check |
+
+---
+
+## 11. Error Handling
+
+### Backend pattern
+All controllers use:
+```typescript
+try { ... } catch(err) { next(err) }
+```
+Global error handler in `server/src/middleware/errorHandler.ts` catches and formats responses.
+
+### Frontend pattern (`useCoverLetter`)
+```typescript
+catch (err: any) {
+  setProgressStep('error');
+  setError(
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    'Failed to generate cover letter'
+  );
 }
 ```
-At least one field required (controller enforces).
 
-**Response `200`:**
-```json
-{ "coverLetter": { "...updatedRecord": true } }
-```
+Error state renders a red card with the message and a "Try again" button that calls `reset()` (â†’ `'idle'`).
 
----
+Save errors set `error` state but do not change `progressStep`.
 
-## 5. Business Rules
-
-| Rule | Detail |
-|------|--------|
-| **Multiple per resume** | No UNIQUE constraint; unlimited letters per resume |
-| **Revert** | `generated_content` frozen at generation/regeneration time; `content` is editable; revert sets editor back to `generated_content` |
-| **Keyword coverage** | Computed client-side: `editorHtml.toLowerCase().includes(keyword.toLowerCase())` — no server round-trip |
-| **Temporary letters** | Generated when no `resumeId` provided (upload mode or standalone with no resume); shown in editor but not persisted; "Save" disabled |
-| **Improve** | Based on `generated_content`, not current edits; if user has unsaved edits a confirm dialog is shown first |
-| **Rate limit** | `aiLimiter`: 10 req/15 min per IP on `/extract-keywords`, `/generate`, `/:id/regenerate`, `/:id/improve` |
+Initial load 404 is silently ignored (not an error â€” just means no letter exists yet).
 
 ---
 
-## 6. Business Flows
+## 12. Security
 
-### Create flow
+### Prompt Injection Sanitization (`server/src/utils/sanitizePromptInput.ts`)
 
+All user-supplied text injected into AI prompts passes through `sanitizePromptInput()`:
+- Strips null bytes and control chars (keeps `\n`, `\r`, `\t`)
+- Replaces injection phrases with `[redacted]`:
+  - `ignore (all) previous instructions`
+  - `ignore (all) instructions`
+  - `disregard (all) previous`
+  - `you are now`
+  - `new instructions`
+  - `system:` / `assistant:` / `[system]` / `[assistant]` / `<< SYS >>`
+- Truncates to 8000 chars
+
+In `coverLetterGenerator.ts`:
+- `jobDescription` â†’ sanitized then sliced to 2000
+- `customInstructions` â†’ sanitized (no further slice beyond 500 backend limit)
+- `resumeText` â†’ sliced to 3000 only (already from DB, not user-injected at call time)
+
+### Rate Limiting
+
+`aiLimiter` is applied per-route in `server/src/app.ts`:
+```typescript
+app.use('/api/cover-letter/extract-keywords', aiLimiter);
 ```
-1. User fills form → POST /extract-keywords
-   → progressStep = 'extracting'
-   → response: matchedKeywords, missingKeywords
+The `generate` endpoint also uses `aiLimiter`. Limit: 10 requests per 15 minutes per IP.
 
-2. sleep(1200ms) → progressStep = 'keywords-ready'
-   (badge preview shown to user)
-
-3. POST /generate
-   → progressStep = 'generating'
-   → response: coverLetter
-
-4. progressStep = 'done'
-   → activeLetter set to new letter
-   → letter prepended to coverLetters list
-```
-
-### Regenerate flow
-
-```
-1. User clicks ↺ Regenerate → confirm dialog (warn: overwrites current)
-2. POST /:id/regenerate → progressStep = 'generating'
-3. Response: content + generated_content both replaced
-4. activeLetter updated in list
-```
-
-### Improve flow
-
-```
-1. User fills "Why this company?" and/or "Achievement to highlight"
-2. If unsaved edits → confirm dialog
-3. POST /:id/improve → progressStep = 'generating'
-4. AI weaves personalisations into generated_content
-5. Both content + generated_content updated in DB and list
-```
-
-### Letter list / resume switch
-
-```
-selectedResumeId changes
-→ useCoverLetters effect fires
-→ GET /resume/:resumeId
-→ coverLetters array loaded
-→ activeLetter = first letter in list (if any), else null
-```
+### Authentication
+All cover letter routes require `isAuthenticated` middleware. Ownership is verified in every query by joining against `resumes.user_id = userId`. A user can never read or modify another user's cover letter.
 
 ---
 
-## 7. Frontend Hook — `useCoverLetters`
+## 13. Testing Patterns
 
-**File:** `client/src/hooks/useCoverLetters.ts`
+### Backend (Jest + ts-jest + supertest)
 
-Replaces the old `useCoverLetter` (singular) hook.
+Location: `server/src/controllers/__tests__/coverLetterController.test.ts`
 
-### State
+**Mocks required:**
+- `jest.mock('../../config/db')` â€” mock `pool.query`
+- `jest.mock('../../services/ai/coverLetterGenerator')` â€” mock `generateCoverLetter`
+- `jest.mock('../../services/ai/keywordExtractor')` â€” mock `extractKeywords`
+- Passport session: set `req.user = { id: 'user-uuid' }` via test middleware
 
-| State field | Type | Description |
-|-------------|------|-------------|
-| `coverLetters` | `CoverLetter[]` | All letters for current resume |
-| `activeLetter` | `CoverLetter \| null` | Currently selected / editing letter |
-| `mode` | `'new' \| 'edit'` | UI mode |
-| `keywords` | `{ matched: string[], missing: string[] }` | From extract-keywords |
-| `progressStep` | `'idle' \| 'extracting' \| 'keywords-ready' \| 'generating' \| 'done' \| 'error'` | Progress state |
-| `isLoading` | `boolean` | API call in-flight |
-| `isSaving` | `boolean` | Save call in-flight |
-| `savedIndicator` | `boolean` | Briefly true after successful save |
-| `error` | `string \| null` | Last error message |
-| `resumeInputMode` | `'existing' \| 'upload'` | How resume text is sourced |
-| `uploadedResumeText` | `string` | Parsed text from uploaded PDF |
-| `uploadedFileName` | `string` | Display name of uploaded file |
-| `isParsing` | `boolean` | PDF parse in-flight |
-| `parseError` | `string \| null` | PDF parse error |
-| `isTemporaryLetter` | `boolean` | True when active letter has no DB record |
+**Test suites:**
+- `POST /extract-keywords`: 200 with `{ matchedKeywords, missingKeywords }`; 404 when resume not found; 400 when no resume content; 400 when resumeId is not a UUID; 400 when jobDescription is empty; 401 when unauthenticated
+- `GET /` (listCoverLetters): 200 with `{ coverLetters: [...] }`; 200 with empty array; 401 when unauthenticated
+- `POST /generate`: 201 with coverLetter; 404 when resume not found; 400 when validation fails; 401 when unauthenticated
+- `GET /:resumeId`: 200; 404
+- `PUT /:resumeId`: 200; 404; 400 when content missing
+- `DELETE /:resumeId`: 200; 401
 
-### Methods
+**Validation returns 400** (not 422) â€” express-validator's `validate` middleware uses `res.status(400)`.
 
-| Method | Purpose |
-|--------|---------|
-| `create(payload)` | extract-keywords → generate → prepend to list, set activeLetter |
-| `regenerate(letterId, payload)` | `POST /:id/regenerate` → update letter in list |
-| `save(content)` | `PUT /:id` → update `content` in list |
-| `remove(letterId)` | `DELETE /:id` → remove from list; reset activeLetter if it was active |
-| `improve(letterId, why?, achievement?)` | `POST /:id/improve` → update letter in list |
-| `startNew()` | Reset `activeLetter` to null, `mode` to `'new'` |
-| `selectLetter(letter)` | Set `activeLetter`, `mode` to `'edit'` |
-| `parseUploadedFile(file)` | `POST /resume/parse-text` → set `uploadedResumeText` |
-| `reset()` | `progressStep = 'idle'`, clear error |
+**Validation test pattern:**
+```typescript
+const res = await request(app)
+  .post('/api/cover-letter/extract-keywords')
+  .send({ resumeId: 'not-a-uuid', jobDescription: '' });
+expect(res.status).toBe(400);
+```
 
----
+**UUID format:** Backend validators require valid UUID v4 format â€” use real UUIDs in tests:
+```typescript
+const RESUME_ID = '11111111-1111-4111-8111-111111111111';
+```
 
-## 8. Validation Rules
+### Frontend (Vitest + @testing-library/react)
 
-### `POST /extract-keywords`
-- `resumeId` (UUID v4) OR `resumeText` (non-empty string) — one required
-- `jobDescription` — required, max 5000 chars
+Location: `client/src/pages/__tests__/CoverLetterPage.test.tsx`
 
-### `POST /generate`
-- `fullName` — required
-- `jobDescription` — required, max 5000 chars
-- `companyName` — required
-- `tone` — required, one of: `professional | enthusiastic | formal | conversational`
-- `wordCountTarget` — required, one of: `short | medium | long`
-- `resumeId` — optional UUID v4
-- `resumeText` — optional string
-- `jobTitle` — optional, max 255 chars
-- `customInstructions` — optional, max 500 chars
+**Mocks required:**
+- `vi.mock('../../utils/api')` â€” mock `listResumes`, `generateCoverLetter`, `getCoverLetter`, `saveCoverLetter`, `deleteCoverLetter`, `extractKeywords`, `apiClient`
+- `vi.mock('../../hooks/useCoverLetter')` â€” mock entire hook; must return correct interface
 
-### `POST /:id/regenerate`
-- Same as `/generate` minus `resumeId` / `resumeText`
+**Correct `useCoverLetter` mock interface** (match `UseCoverLetterReturn` exactly):
+```typescript
+const defaultHookReturn = {
+  coverLetter: null,
+  keywords: { matched: [], missing: [] },
+  progressStep: 'idle' as const,
+  isLoading: false,
+  isSaving: false,
+  savedIndicator: false,
+  error: null,
+  generate: vi.fn(),
+  save: vi.fn(),
+  reset: vi.fn(),          // NOT clearError
+};
+```
 
-### `POST /:id/improve`
-- `whyThisCompany` — optional, max 300 chars
-- `achievementToHighlight` — optional, max 200 chars
-- At least one of the two fields required (controller-level check)
+**Route for renderPage:** `/cover-letter/new` (NOT `/resume/:id/cover-letter`)
+```typescript
+<MemoryRouter initialEntries={['/cover-letter/new']}>
+  <Routes>
+    <Route path="/cover-letter/new" element={<CoverLetterPage />} />
+  </Routes>
+</MemoryRouter>
+```
 
-### `PUT /:id`
-- `content` — required, max 10000 chars
-
----
-
-## 9. Key Files
-
-| File | Purpose |
-|------|---------|
-| `server/src/controllers/coverLetterController.ts` | All route handlers |
-| `server/src/routes/coverLetter/index.ts` | Route definitions + middleware |
-| `server/src/services/ai/coverLetterGenerator.ts` | GPT-4o-mini generation |
-| `server/src/services/ai/keywordExtractor.ts` | GPT-4o-mini keyword extraction |
-| `server/src/types/coverLetter.types.ts` | Server-side types |
-| `server/src/migrations/022_create_cover_letters.ts` | Initial table |
-| `server/src/migrations/027_alter_cover_letters_multiple.ts` | Drop UNIQUE, add job_title |
-| `client/src/hooks/useCoverLetters.ts` | Main frontend hook (replaces useCoverLetter) |
-| `client/src/pages/CoverLetterPage.tsx` | Main page component |
-| `client/src/types/index.ts` | Client-side `CoverLetter` interface |
+**Key test patterns:**
+- Use `vi.clearAllMocks()` in `beforeEach`
+- Progress step tests: set `progressStep: 'extracting'` or `'generating'` in hook mock
+- Error state tests: must set BOTH `progressStep: 'error'` AND `error: 'message'`
+- `savedIndicator: true` shows "Saved âœ“" text inside the save button
+- Button text: "Generate Cover Letter" (no letter), "â†º Regenerate" (letter exists), "Generating..." (in progress)
+- For emoji assertions (âœ…/âŒ badges), use `getAllByText(/âœ…/, { selector: 'span' })`; set `keywords` in hook mock
+- "Try again" button calls `reset()`, not `clearError()`

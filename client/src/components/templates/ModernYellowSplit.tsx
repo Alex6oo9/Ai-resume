@@ -182,25 +182,31 @@ const ModernYellowSplit: React.FC<ResumeTemplateProps> = ({ data, isPreview }) =
                             {data.skills.technical.map((skill, index) => (
                                 <div key={index} style={{ fontSize: '10pt' }}>
                                     <div style={{ fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>{skill.category}</div>
-                                    <div style={{ color: '#e0e0e0', fontSize: '9pt' }}>
-                                        {skill.items.join(', ')}
-                                    </div>
+                                    <ul style={{ margin: 0, paddingLeft: '14pt', listStyleType: 'disc' }}>
+                                        {skill.items.map((item, j) => (
+                                            <li key={j} style={{ color: '#e0e0e0', fontSize: '9pt', lineHeight: '1.6' }}>{item}</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             ))}
                             {data.skills.soft.length > 0 && (
                                 <div style={{ fontSize: '10pt' }}>
                                     <div style={{ fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>Soft Skills</div>
-                                    <div style={{ color: '#e0e0e0', fontSize: '9pt' }}>
-                                        {data.skills.soft.join(', ')}
-                                    </div>
+                                    <ul style={{ margin: 0, paddingLeft: '14pt', listStyleType: 'disc' }}>
+                                        {data.skills.soft.map((item, j) => (
+                                            <li key={j} style={{ color: '#e0e0e0', fontSize: '9pt', lineHeight: '1.6' }}>{item}</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                             {data.skills.languages.some((l) => l.language) && (
                                 <div style={{ fontSize: '10pt' }}>
                                     <div style={{ fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>Languages</div>
-                                    <div style={{ color: '#e0e0e0', fontSize: '9pt' }}>
-                                        {data.skills.languages.filter((l) => l.language).map((l) => `${l.language} (${l.proficiency})`).join(', ')}
-                                    </div>
+                                    <ul style={{ margin: 0, paddingLeft: '14pt', listStyleType: 'disc' }}>
+                                        {data.skills.languages.filter((l) => l.language).map((l, j) => (
+                                            <li key={j} style={{ color: '#e0e0e0', fontSize: '9pt', lineHeight: '1.6' }}>{l.language}{l.proficiency && ` — ${l.proficiency}`}</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </div>

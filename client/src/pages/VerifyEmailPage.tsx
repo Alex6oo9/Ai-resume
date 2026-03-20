@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { verifyEmail, resendVerification } from '../utils/api';
+import { useAuthContext } from '../contexts/AuthContext';
 import type { User } from '../types';
 
-interface VerifyEmailPageProps {
-  onVerified?: (user: User) => void;
-}
-
-export default function VerifyEmailPage({ onVerified }: VerifyEmailPageProps) {
+export default function VerifyEmailPage() {
+  const { setUser: onVerified } = useAuthContext();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token')?.trim() || null;
 
@@ -34,7 +32,7 @@ export default function VerifyEmailPage({ onVerified }: VerifyEmailPageProps) {
       .then((data) => {
         setStatus('success');
         setMessage(data.message);
-        if (data.autoLogin && data.user && onVerified) {
+        if (data.autoLogin && data.user) {
           setAutoLoggedIn(true);
           onVerified(data.user as User);
           setTimeout(() => navigate('/dashboard'), 1500);
@@ -63,7 +61,7 @@ export default function VerifyEmailPage({ onVerified }: VerifyEmailPageProps) {
         {status === 'loading' && (
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-            <p className="text-gray-600">Verifying your email...</p>
+            <p className="text-muted-foreground">Verifying your email...</p>
           </div>
         )}
 
@@ -74,10 +72,10 @@ export default function VerifyEmailPage({ onVerified }: VerifyEmailPageProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="mb-2 text-2xl font-bold text-gray-900">Email Verified</h2>
-            <p className="mb-6 text-gray-600">{message}</p>
+            <h2 className="mb-2 text-2xl font-bold text-foreground">Email Verified</h2>
+            <p className="mb-6 text-muted-foreground">{message}</p>
             {autoLoggedIn ? (
-              <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
+              <p className="text-sm text-muted-foreground">Redirecting to dashboard...</p>
             ) : (
               <Link
                 to="/login?verified=true"
@@ -96,18 +94,18 @@ export default function VerifyEmailPage({ onVerified }: VerifyEmailPageProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h2 className="mb-2 text-2xl font-bold text-gray-900">Verification Failed</h2>
-            <p className="mb-6 text-gray-600">{message}</p>
+            <h2 className="mb-2 text-2xl font-bold text-foreground">Verification Failed</h2>
+            <p className="mb-6 text-muted-foreground">{message}</p>
 
-            <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <p className="mb-3 text-sm text-gray-600">Need a new verification link?</p>
+            <div className="mt-6 rounded-lg border border-border bg-muted/50 p-4">
+              <p className="mb-3 text-sm text-muted-foreground">Need a new verification link?</p>
               <div className="flex gap-2">
                 <input
                   type="email"
                   placeholder="Enter your email"
                   value={resendEmail}
                   onChange={(e) => setResendEmail(e.target.value)}
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
                   onClick={handleResend}
@@ -118,7 +116,7 @@ export default function VerifyEmailPage({ onVerified }: VerifyEmailPageProps) {
                 </button>
               </div>
               {resendStatus === 'sent' && (
-                <p className="mt-2 text-sm text-green-600">If an account exists, a new link has been sent.</p>
+                <p className="mt-2 text-sm text-green-600 dark:text-green-400">If an account exists, a new link has been sent.</p>
               )}
             </div>
           </>

@@ -17,6 +17,26 @@ All endpoints prefixed with `/api`. Client should configure `axios.baseURL = '/a
 
 ## API Endpoints
 
+### Health Check
+
+#### `GET /api/health`
+Returns server and database health. No authentication required.
+```json
+// Response 200
+{
+  "status": "healthy",
+  "timestamp": "2026-03-18T10:00:00.000Z",
+  "checks": {
+    "api": "ok",
+    "db": { "status": "ok", "latencyMs": 4 }
+  }
+}
+// status is "degraded" if DB check fails; db.status is "degraded" with latencyMs: null
+```
+`Cache-Control: no-cache`. Used by `ConnectivityProvider` (client) for automatic server-down detection.
+
+---
+
 ### Authentication (`/api/auth/*`)
 
 #### `POST /api/auth/register`
@@ -109,7 +129,7 @@ All require authentication.
     "match_percentage": 75,
     "ats_score": 83,
     "ai_analysis": { "strengths": [...], "weaknesses": [...], "suggestions": [...], "atsBreakdown": {...}, "improvements": {...} },
-    "template_id": "modern_minimal",
+    "template_id": "modern",
     "form_data": { /* ResumeFormData or null */ },
     "created_at": "ts"
   }
@@ -147,6 +167,16 @@ On upload, one `analysis_history` row is inserted with the initial analysis.
 #### `DELETE /api/resume/:id`
 Deletes resume, resume_data (CASCADE), and uploaded file from disk. Response: `{ "message": "Resume deleted" }`
 
+#### `POST /api/resume/parse-text`
+- Content-Type: `multipart/form-data`
+- Fields: `file` (PDF only, max 5MB)
+- Rate limited. Parses the uploaded PDF server-side and returns the extracted text.
+```json
+// Response 200
+{ "text": "string" }
+// Errors: 400 (missing/invalid file), 500
+```
+
 #### `POST /api/resume/draft/save`
 ```json
 // Request
@@ -170,7 +200,7 @@ Deletes resume, resume_data (CASCADE), and uploaded file from disk. Response: `{
 { "message": "Template switched successfully", "template": { /* Template object */ } }
 // Errors: 400 (missing templateId), 403 (insufficient subscription tier), 404 (resume/template not found)
 ```
-Note: `resumes.template_id` stores the template **slug** (e.g., `"modern_minimal"`), not the UUID.
+Note: `resumes.template_id` stores the template **slug** (e.g., `"modern"`), not the UUID.
 
 ---
 
@@ -185,8 +215,8 @@ Returns all active templates with lock status based on user's subscription tier.
   "templates": [
     {
       "id": "uuid",
-      "name": "modern_minimal",
-      "displayName": "Modern Minimal",
+      "name": "modern",
+      "displayName": "Modern",
       "description": "string",
       "category": "modern",
       "thumbnailUrl": "string",
@@ -207,8 +237,8 @@ Returns single template (no configuration block — styling lives in React compo
 {
   "template": {
     "id": "uuid",
-    "name": "modern_minimal",
-    "displayName": "Modern Minimal",
+    "name": "modern",
+    "displayName": "Modern",
     "description": "string",
     "category": "modern",
     "thumbnailUrl": "string",
@@ -299,6 +329,103 @@ Auth required. Generates Markdown from stored parsed text.
 
 ---
 
+### Cover Letters (`/api/cover-letter/*`)
+All require authentication. Multiple letters allowed per resume (migration 027 dropped `UNIQUE(resume_id)`).
+Letters are keyed by their own UUID — `GET/PUT/DELETE` use `/:id` (letter UUID), not `/:resumeId`.
+
+#### `GET /api/cover-letter/`
+Returns all cover letters for the authenticated user (limit 10, DESC by `updated_at`). Includes `target_role` from joined resumes table.
+```json
+// Response 200
+{ "letters": [ /* CoverLetter[] */ ] }
+```
+
+#### `GET /api/cover-letter/resume/:resumeId`
+Returns all cover letters attached to a specific resume (ownership check on resume).
+```json
+// Response 200
+{ "letters": [ /* CoverLetter[] */ ] }
+```
+
+#### `GET /api/cover-letter/:id`
+```json
+// Response 200
+{ "letter": { "id": "uuid", "resume_id": "uuid|null", "user_id": "uuid", "job_title": "string|null", "content": "string", "generated_content": "string", "tone": "string", "word_count_target": 300, "created_at": "ts", "updated_at": "ts" } }
+// Errors: 404
+```
+
+#### `POST /api/cover-letter/extract-keywords`
+Rate limited (AI cost control). Extracts matched/missing keywords from resume text + job description.
+Resume text truncated to 3000 chars, JD to 2000 chars before GPT call.
+```json
+// Request
+{ "resumeId": "uuid (optional)", "resumeText": "string (optional)", "jobDescription": "string" }
+// Response 200
+{ "keywords": { "matched": ["keyword1", ...], "missing": ["keyword2", ...] } }
+// Errors: 400 (missing resumeId or resumeText), 500
+```
+
+#### `POST /api/cover-letter/generate`
+Rate limited. Generates a new cover letter and persists it to DB. `resume_id` may be null (standalone letter).
+```json
+// Request
+{
+  "resumeId": "uuid (optional — null for standalone letters)",
+  "resumeText": "string (optional, used when resumeId omitted)",
+  "jobTitle": "string",
+  "companyName": "string",
+  "jobDescription": "string",
+  "tone": "professional|conversational|enthusiastic|formal (default: professional)",
+  "wordCountTarget": "short|medium|long (default: medium)",
+  "keywords": { "matched": [...], "missing": [...] },
+  "whyThisCompany": "string (optional)",
+  "achievementToHighlight": "string (optional)"
+}
+// Response 201
+{ "letter": { /* CoverLetter */ } }
+// Errors: 400, 500
+```
+
+#### `PUT /api/cover-letter/:id`
+Saves manual edits to a cover letter.
+```json
+// Request
+{ "content": "string" }
+// Response 200
+{ "letter": { /* CoverLetter */ } }
+// Errors: 404
+```
+
+#### `DELETE /api/cover-letter/:id`
+```json
+// Response 200
+{ "message": "Cover letter deleted" }
+// Errors: 404
+```
+
+#### `POST /api/cover-letter/:id/regenerate`
+Regenerates an existing cover letter (replaces `content` and `generated_content` in DB).
+Requires letter to have a non-null `resume_id` — standalone letters cannot be regenerated.
+```json
+// Request: same shape as /generate (minus resumeId/resumeText)
+// Response 200
+{ "letter": { /* CoverLetter */ } }
+// Errors: 400 (standalone letter), 404, 500
+```
+
+#### `POST /api/cover-letter/:id/improve`
+Improves an existing cover letter using `generated_content` as the base (not `content`).
+GPT-4o-mini weaves personalizations into the letter.
+```json
+// Request
+{ "whyThisCompany": "string (optional)", "achievementToHighlight": "string (optional)" }
+// Response 200
+{ "letter": { /* CoverLetter */ } }
+// Errors: 404, 500
+```
+
+---
+
 ## Data Structures
 
 ### ResumeFormData (Server-side storage format)
@@ -385,10 +512,10 @@ languages = [{ name: "English", proficiency: "fluent" }]
 ## Database Schema
 
 ### users
-`id` UUID PK, `name` VARCHAR(255), `email` VARCHAR(255) UNIQUE, `password` VARCHAR(255), `created_at` TIMESTAMP
+`id` UUID PK, `name` VARCHAR(255), `email` VARCHAR(255) UNIQUE, `password` VARCHAR(255), `is_email_verified` BOOLEAN DEFAULT FALSE, `created_at` TIMESTAMP
 
 ### resumes
-`id` UUID PK, `user_id` UUID FK→users, `file_path` TEXT nullable (Path A only), `parsed_text` TEXT nullable, `target_role` VARCHAR(255), `target_country` VARCHAR(100), `target_city` VARCHAR(100) nullable, `job_description` TEXT nullable, `match_percentage` INTEGER nullable, `ats_score` INTEGER nullable, `ai_analysis` JSONB nullable, `template_id` VARCHAR(50) DEFAULT `'modern_minimal'`, `status` VARCHAR(50), `created_with_live_preview` BOOLEAN, `created_at`, `updated_at`
+`id` UUID PK, `user_id` UUID FK→users, `file_path` TEXT nullable (Path A only), `parsed_text` TEXT nullable, `target_role` VARCHAR(255), `target_country` VARCHAR(100), `target_city` VARCHAR(100) nullable, `job_description` TEXT nullable, `match_percentage` INTEGER nullable, `ats_score` INTEGER nullable, `ai_analysis` JSONB nullable, `template_id` VARCHAR(50) DEFAULT `'modern'`, `status` VARCHAR(50), `created_with_live_preview` BOOLEAN, `created_at`, `updated_at`
 
 ### resume_data
 `id` UUID PK, `resume_id` UUID FK→resumes (CASCADE DELETE), `form_data` JSONB
@@ -400,8 +527,9 @@ languages = [{ name: "English", proficiency: "fluent" }]
 - Queried by: `GET /analysis/history/:resumeId` (last 5 DESC)
 
 ### templates
-`id` UUID PK, `name` VARCHAR(100) UNIQUE (slug, e.g. `"modern_minimal"`), `display_name` VARCHAR(255), `description` TEXT, `category` VARCHAR(50), `thumbnail_url` TEXT, `supports_multiple_columns` BOOLEAN, `is_ats_friendly` BOOLEAN, `required_tier` VARCHAR(20) ('free'|'monthly'|'annual'), `sort_order` INTEGER, `is_active` BOOLEAN, `created_at`
+`id` UUID PK, `name` VARCHAR(100) UNIQUE (slug, e.g. `"modern"`), `display_name` VARCHAR(255), `description` TEXT, `category` VARCHAR(50), `thumbnail_url` TEXT, `supports_multiple_columns` BOOLEAN, `is_ats_friendly` BOOLEAN, `required_tier` VARCHAR(20) ('free'|'monthly'|'annual'), `sort_order` INTEGER, `is_active` BOOLEAN, `created_at`
 Note: `preview_images`, `supports_photo`, `supports_color_customization` columns dropped in migration 012.
+Current default template: `'modern'` (sort_order=0). Active templates: `modern`, `modern_yellow_split`, `dark_ribbon_modern`, `modern_minimalist_block`, `editorial_earth_tone`, `ats_clean`, `ats_lined`.
 
 ### subscriptions
 `id` UUID PK, `user_id` UUID FK→users, `tier` VARCHAR(20), `status` VARCHAR(20), `expires_at` TIMESTAMP nullable
@@ -410,11 +538,57 @@ Note: `preview_images`, `supports_photo`, `supports_color_customization` columns
 `id` UUID PK, `resume_id` UUID, `user_id` UUID, `change_type` VARCHAR(50), `previous_template_name` VARCHAR(100), `new_template_name` VARCHAR(100), `changed_fields` JSONB, `created_at`
 (Tracks template switches — separate from `analysis_history`)
 
+### email_verification_tokens
+`id` UUID PK, `user_id` UUID FK→users (CASCADE DELETE), `token_hash` VARCHAR(255), `expires_at` TIMESTAMP, `created_at` TIMESTAMP
+
+### password_reset_tokens
+`id` UUID PK, `user_id` UUID FK→users (CASCADE DELETE), `token_hash` VARCHAR(255), `expires_at` TIMESTAMP, `used` BOOLEAN DEFAULT FALSE, `created_at` TIMESTAMP
+
 ### session
 PostgreSQL session store managed by `express-session`.
 
+### cover_letters
+`id` UUID PK, `resume_id` UUID FK→resumes **nullable** (ON DELETE CASCADE), `user_id` UUID FK→users (ON DELETE CASCADE), `job_title` VARCHAR(255) nullable, `content` TEXT, `generated_content` TEXT, `tone` VARCHAR(50), `word_count_target` VARCHAR(20), `created_at` TIMESTAMP, `updated_at` TIMESTAMP
+Index: `idx_cover_letters_resume_created(resume_id, created_at DESC)`
+- `resume_id` is nullable — null means standalone letter not attached to any resume
+- No `UNIQUE(resume_id)` constraint — multiple letters allowed per resume (dropped migration 027)
+- `job_title` added in migration 027
+
 ### migrations
-Tracks which numbered migrations have been run (001–019).
+Tracks which numbered migrations have been run (001–029).
+
+**Migration list:**
+| # | Name | Description |
+|---|------|-------------|
+| 001 | create_users | Users table |
+| 002 | create_sessions | Session store table |
+| 003 | create_resumes | Resumes table |
+| 004 | create_resume_data | Resume form data JSONB |
+| 005 | add_live_preview_columns | Adds live-preview columns to resumes |
+| 006 | add_templates | Templates table |
+| 007 | seed_templates | Seeds initial templates |
+| 008 | seed_free_templates | Seeds free-tier templates |
+| 009 | seed_new_templates | Seeds additional templates |
+| 010 | seed_sleek_director_template | Seeds sleek_director |
+| 011 | delete_unwanted_templates | Removes unwanted template rows |
+| 012 | per_template_cleanup | Drops `template_configurations`, removes `supports_photo`/`supports_color_customization`/`preview_images` columns |
+| 013 | add_modern_yellow_split_template | Seeds `modern_yellow_split` |
+| 014 | add_template_id_to_resumes | Adds `template_id` column to resumes |
+| 015 | add_dark_ribbon_modern_template | Seeds `dark_ribbon_modern` (sort_order=9) |
+| 016 | add_modern_minimalist_block_template | Seeds `modern_minimalist_block` (sort_order=10) |
+| 017 | add_editorial_earth_tone_template | Seeds `editorial_earth_tone` (sort_order=11) |
+| 018 | add_job_description_to_resumes | Adds `job_description TEXT` to resumes |
+| 019 | create_analysis_history | Creates `analysis_history` table |
+| 020 | email_verification | Adds `name`+`is_email_verified` to users; creates `email_verification_tokens`; marks existing users verified |
+| 021 | password_reset | Creates `password_reset_tokens` table |
+| 022 | create_cover_letters | Creates `cover_letters` table with `UNIQUE(resume_id)` |
+| 023 | remove_deleted_templates | Deletes 5 legacy template rows; migrates resumes to `modern_yellow_split` |
+| 024 | remove_warm_creative_sleek_director | Deletes `warm_creative`+`sleek_director`; migrates resumes to `modern_yellow_split` |
+| 025 | add_ats_templates | Adds `ats_clean` (sort_order=12)+`ats_lined` (sort_order=13); recategorizes `modern_yellow_split`+`editorial_earth_tone` to `modern` category |
+| 026 | add_modern_template | Adds `modern` (sort_order=0, single-col centered, Inter font, default template) |
+| 027 | alter_cover_letters_multiple | Drops `UNIQUE(resume_id)` constraint; adds `job_title VARCHAR(255)` column; new index on `(resume_id, created_at DESC)` |
+| 028 | allow_null_resume_id_cover_letters | Makes `resume_id` nullable (enables standalone letters not attached to a resume) |
+| 029 | update_template_thumbnails | Sets `thumbnail_url = '/thumbnails/{name}.png'` for all 7 active templates |
 
 ---
 
@@ -425,12 +599,37 @@ Tracks which numbered migrations have been run (001–019).
 
 ---
 
+## Thumbnail Generation Script
+
+Generates static PNG thumbnails for all 7 templates. Run once after adding/updating templates.
+
+```bash
+# From server/ directory (requires both dev servers running)
+npm run generate:thumbnails
+```
+
+**Script:** `server/src/scripts/generate-thumbnails.ts`
+**How it works:**
+1. Launches Puppeteer browser
+2. For each template ID, visits `http://localhost:5173/thumbnail-preview?template={id}`
+3. Waits for `[data-thumbnail-ready="true"]` attribute (max 15s) — set by `ThumbnailPreviewPage` after render
+4. Screenshots at 816×1056px viewport, `deviceScaleFactor: 2` (1632×2112 actual pixels)
+5. Saves PNG to `client/public/thumbnails/{templateId}.png`
+
+**Output files:** `client/public/thumbnails/modern.png`, `modern_yellow_split.png`, `dark_ribbon_modern.png`, `modern_minimalist_block.png`, `editorial_earth_tone.png`, `ats_clean.png`, `ats_lined.png`
+
+After running, execute migration 029 to update `thumbnail_url` in the DB, or the URLs are already set correctly if migration was already applied.
+
+---
+
 ## AI Integration
 
-- Model: `gpt-4o-mini`, Temperature: 0.7
+- Model: `gpt-4o-mini`, Temperature: 0.7 (analysis) / 0.8 (cover letter generation) / 0.3 (keyword extraction)
 - JSON mode for structured output
 - PDF parsing: `pdf-parse` v2.4.5 — `new PDFParse({ data: Uint8Array, standardFontDataUrl })` → `.getText()` → `.text`
 - `extractResumeStructure` — best-effort AI extraction of structured data from uploaded PDF text (populates `resume_data` for Path A, enabling PDF export)
+- `keywordExtractor.ts` — `extractKeywords({ resumeText, jobDescription })` — extracts matched/missing keywords (gpt-4o-mini, temp 0.3, JSON mode)
+- `coverLetterGenerator.ts` — generates cover letters (gpt-4o-mini, temp 0.8); supports 4 tones (`professional`, `conversational`, `enthusiastic`, `formal`) and 3 length targets
 
 ---
 

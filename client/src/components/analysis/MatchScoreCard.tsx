@@ -12,9 +12,9 @@ function getScoreColor(score: number): string {
 }
 
 function getScoreBg(score: number): string {
-  if (score >= 75) return 'bg-green-100';
-  if (score >= 50) return 'bg-yellow-100';
-  return 'bg-red-100';
+  if (score >= 75) return 'bg-green-100 dark:bg-green-950/40';
+  if (score >= 50) return 'bg-yellow-100 dark:bg-yellow-950/40';
+  return 'bg-red-100 dark:bg-red-950/40';
 }
 
 export default function MatchScoreCard({
@@ -27,22 +27,22 @@ export default function MatchScoreCard({
     return (
       <div
         data-testid="match-loading"
-        className="animate-pulse rounded-lg border border-gray-200 bg-white p-6"
+        className="animate-pulse rounded-lg border border-border bg-card p-6"
       >
-        <div className="mb-4 h-6 w-40 rounded bg-gray-200" />
-        <div className="mb-6 h-16 w-24 rounded bg-gray-200" />
+        <div className="mb-4 h-6 w-40 rounded bg-muted" />
+        <div className="mb-6 h-16 w-24 rounded bg-muted" />
         <div className="space-y-2">
-          <div className="h-4 w-full rounded bg-gray-200" />
-          <div className="h-4 w-3/4 rounded bg-gray-200" />
-          <div className="h-4 w-5/6 rounded bg-gray-200" />
+          <div className="h-4 w-full rounded bg-muted" />
+          <div className="h-4 w-3/4 rounded bg-muted" />
+          <div className="h-4 w-5/6 rounded bg-muted" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">
+    <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">
         Match Score
       </h2>
 
@@ -61,7 +61,7 @@ export default function MatchScoreCard({
           </h3>
           <ul className="space-y-1">
             {strengths.map((s, i) => (
-              <li key={i} className="text-sm text-gray-700">
+              <li key={i} className="text-sm text-foreground">
                 <span className="mr-1 text-green-500">+</span>
                 {s}
               </li>
@@ -75,7 +75,7 @@ export default function MatchScoreCard({
           </h3>
           <ul className="space-y-1">
             {weaknesses.map((w, i) => (
-              <li key={i} className="text-sm text-gray-700">
+              <li key={i} className="text-sm text-foreground">
                 <span className="mr-1 text-red-500">-</span>
                 {w}
               </li>

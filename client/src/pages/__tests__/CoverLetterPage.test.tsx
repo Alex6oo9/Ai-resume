@@ -71,6 +71,7 @@ import { useCoverLetters } from '../../hooks/useCoverLetters';
 const mockCoverLetter = {
   id: 'cl-id',
   resume_id: 'resume-1',
+  user_id: 'user-1',
   content: 'Dear Hiring Manager, I am excited to apply for...',
   generated_content: 'Dear Hiring Manager, I am excited to apply for...',
   tone: 'professional' as const,

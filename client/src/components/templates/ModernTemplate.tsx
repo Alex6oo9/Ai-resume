@@ -38,7 +38,7 @@ const ModernTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
 
   const hasExperience = data.experience?.length > 0 && !!data.experience[0].company;
   const hasEducation  = data.education?.length  > 0 && !!data.education[0].university;
-  const hasSkills     = data.skills?.categories?.some(c => c.items?.length > 0);
+  const hasSkills     = data.skills?.technical?.some(c => c.items?.length > 0);
   const hasLanguages  = data.skills?.languages?.length > 0;
   const hasProjects   = data.projects?.length > 0 && !!data.projects[0].name;
 
@@ -311,25 +311,27 @@ const ModernTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
       {hasSkills && (
         <section style={{ marginBottom: '18pt' }}>
           <h3 style={sectionHeading}>Skills</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '5pt' }}>
-            {data.skills.categories.map((cat, i) => {
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {data.skills.technical.map((cat, i) => {
               if (!cat.items || cat.items.length === 0) return null;
               return (
-                <div key={i} style={{ display: 'flex', fontSize: '9.5pt' }}>
-                  <span
+                <div key={i} style={{ marginBottom: '6pt' }}>
+                  <div
                     style={{
                       fontFamily: FONT_HEADING,
                       fontWeight: 600,
                       color: COLOR_INK,
-                      width: '110pt',
-                      flexShrink: 0,
+                      fontSize: '9.5pt',
+                      marginBottom: '2pt',
                     }}
                   >
                     {cat.category}
-                  </span>
-                  <span style={{ fontFamily: FONT_BODY, color: COLOR_MUTED }}>
-                    {cat.items.join(', ')}
-                  </span>
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: '14pt', listStyleType: 'disc' }}>
+                    {cat.items.map((item, j) => (
+                      <li key={j} style={{ fontFamily: FONT_BODY, color: COLOR_MUTED, fontSize: '9.5pt', lineHeight: '1.6' }}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
               );
             })}

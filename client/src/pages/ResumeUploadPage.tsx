@@ -106,13 +106,13 @@ export default function ResumeUploadPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">
+      <h1 className="mb-6 text-2xl font-bold text-foreground">
         Upload Your Resume
       </h1>
 
       <div className="space-y-6">
         <div>
-          <h2 className="mb-2 text-lg font-medium text-gray-700">
+          <h2 className="mb-2 text-lg font-medium text-foreground">
             Step 1: Select your resume
           </h2>
           <FileUpload
@@ -129,7 +129,7 @@ export default function ResumeUploadPage() {
         </div>
 
         <div>
-          <h2 className="mb-2 text-lg font-medium text-gray-700">
+          <h2 className="mb-2 text-lg font-medium text-foreground">
             Step 2: Target position details
           </h2>
           <TargetRoleForm
@@ -144,7 +144,7 @@ export default function ResumeUploadPage() {
             {isInProgress && (
               <button
                 onClick={handleCancel}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-accent"
               >
                 Cancel
               </button>

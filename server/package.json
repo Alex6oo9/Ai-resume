@@ -10,7 +10,8 @@
     "migrate": "ts-node src/migrations/run.ts",
     "db:reset": "ts-node src/migrations/reset.ts",
     "db:verify": "ts-node src/scripts/verify-user.ts",
-    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "generate:thumbnails": "ts-node src/scripts/generate-thumbnails.ts"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

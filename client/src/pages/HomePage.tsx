@@ -1,17 +1,14 @@
 import { Link } from 'react-router-dom';
-import { User } from '../types';
+import { useAuthContext } from '../contexts/AuthContext';
 
-interface HomePageProps {
-  user: User | null;
-}
-
-export default function HomePage({ user }: HomePageProps) {
+export default function HomePage() {
+  const { user } = useAuthContext();
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4">
-      <h1 className="mb-4 text-4xl font-bold text-gray-900">
+      <h1 className="mb-4 text-4xl font-bold text-foreground">
         Build Your Perfect Resume
       </h1>
-      <p className="mb-8 max-w-xl text-center text-lg text-gray-600">
+      <p className="mb-8 max-w-xl text-center text-lg text-muted-foreground">
         AI-powered resume builder designed for fresh graduates. Get
         ATS-optimized resumes and know your chances of landing that junior role.
       </p>
@@ -33,7 +30,7 @@ export default function HomePage({ user }: HomePageProps) {
             </Link>
             <Link
               to="/login"
-              className="rounded-lg border border-gray-300 px-6 py-3 text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-border px-6 py-3 text-foreground hover:bg-accent"
             >
               Login
             </Link>

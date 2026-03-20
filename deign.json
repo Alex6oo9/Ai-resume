@@ -1,0 +1,115 @@
+{
+    "page": "Dashboard",
+    "theme": "dark/light (supports both via Tailwind)",
+    "layout": {
+        "container": "min-h-screen bg-background text-foreground font-sans",
+        "topNav": {
+            "wrapper": "flex items-center justify-between px-4 sm:px-8 py-5 max-w-7xl mx-auto",
+            "logo": {
+                "icon": "Sparkles (Lucide)",
+                "iconStyle": "w-10 h-10 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20",
+                "text": "Rezilient.",
+                "textStyle": "text-xl font-bold font-heading tracking-tight"
+            },
+            "actions": {
+                "themeToggle": "present",
+                "search": {
+                    "placeholder": "Search documents...",
+                    "style": "bg-muted/30 border-transparent rounded-full h-10 w-64"
+                },
+                "profile": {
+                    "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+                    "wrapperStyle": "w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-[2px]"
+                }
+            }
+        },
+        "mainContent": {
+            "wrapper": "max-w-7xl mx-auto px-4 sm:px-8 pb-20 pt-4 sm:pt-8",
+            "header": {
+                "title": "Good morning, Felix",
+                "highlightedWord": "Felix",
+                "highlightStyle": "text-primary",
+                "subtitle": "Let's land your next dream job."
+            },
+            "bentoBoxes": {
+                "gridContainer": "grid grid-cols-12 gap-6 auto-rows-[minmax(180px,auto)]",
+                "boxes": [
+                    {
+                        "id": "create_new",
+                        "type": "large",
+                        "gridSpan": "col-span-12 lg:col-span-8 lg:row-span-2",
+                        "style": "relative rounded-3xl overflow-hidden group border border-border shadow-sm hover:shadow-xl hover:border-primary/30 min-h-[300px]",
+                        "backgroundEffects": [
+                            "absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-primary/10",
+                            "absolute top-0 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 group-hover:bg-primary/30"
+                        ],
+                        "content": {
+                            "icon": "Plus",
+                            "iconStyle": "w-12 h-12 rounded-2xl bg-primary text-primary-foreground shadow-lg",
+                            "title": "Create New Resume",
+                            "description": "Use our AI-powered builder to craft a masterpiece that beats the ATS and stands out to recruiters.",
+                            "button": "Start Building (with Sparkles icon, size: lg, rounded-full)"
+                        }
+                    },
+                    {
+                        "id": "analyze_pdf",
+                        "type": "medium_action",
+                        "gridSpan": "col-span-12 sm:col-span-6 lg:col-span-4 lg:row-span-1",
+                        "style": "rounded-3xl border border-dashed border-border hover:border-primary/50 bg-muted/10 hover:bg-primary/5 flex flex-col items-center justify-center p-6 text-center group min-h-[180px]",
+                        "content": {
+                            "icon": "Upload",
+                            "iconStyle": "w-12 h-12 rounded-full bg-background border shadow-sm text-muted-foreground group-hover:text-primary",
+                            "title": "Analyze PDF",
+                            "description": "Drop your existing resume to get an AI score"
+                        }
+                    },
+                    {
+                        "id": "cover_letters",
+                        "type": "medium_card",
+                        "gridSpan": "col-span-12 sm:col-span-6 lg:col-span-4 lg:row-span-1",
+                        "style": "rounded-3xl border border-border bg-card p-6 shadow-sm hover:shadow-md flex flex-col justify-between group min-h-[180px]",
+                        "content": {
+                            "header": {
+                                "icon": "LayoutTemplate",
+                                "iconStyle": "w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600",
+                                "badge": "Beta (bg-teal-500/10 text-teal-700)"
+                            },
+                            "title": "Cover Letters",
+                            "description": "Generate tailored cover letters in seconds"
+                        }
+                    }
+                ]
+            },
+            "recentDocuments": {
+                "header": {
+                    "title": "Recent Documents",
+                    "tabs": [
+                        "All",
+                        "Resumes",
+                        "Cover Letters"
+                    ],
+                    "tabsStyle": "flex p-1 bg-muted/50 rounded-xl border border-border/50 backdrop-blur-sm"
+                },
+                "grid": "col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3",
+                "card": {
+                    "aspectRatio": "aspect-[8.5/11]",
+                    "style": "rounded-2xl border border-border bg-card shadow-sm hover:shadow-xl hover:border-primary/40 hover:-translate-y-1",
+                    "preview": {
+                        "resume": "Wireframe mockup representing a two-column resume layout",
+                        "coverLetter": "Wireframe mockup representing a standard letter format",
+                        "overlayHover": "bg-black/40 with Edit (PenLine) button"
+                    },
+                    "badges": {
+                        "score": "bg-background/95 border-border rounded-full. Emerald text if >80, Amber if <=80",
+                        "type": "bg-teal-500/10 text-teal-700 border-teal-200 for cover letters"
+                    },
+                    "footer": {
+                        "title": "Document Title",
+                        "metadata": "Date edited
+• Target company (if cover letter)","menu": "Dropdown (Edit, Delete)"
+                    }
+                }
+            }
+        }
+    }
+}

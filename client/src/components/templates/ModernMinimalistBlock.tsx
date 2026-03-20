@@ -121,11 +121,15 @@ export default function ModernMinimalistBlock({ data, isPreview }: ResumeTemplat
               paddingBottom: sp.xs,
               borderBottom: `1px solid ${colors.onDarkMuted}`,
             }}>Technical Skills</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: sp.sm, fontSize: fs.body }}>
+            <div style={{ display: 'flex', flexDirection: 'column', fontSize: fs.body }}>
               {data.skills.technical.map((tech, i) => (
                 <div key={i}>
-                  <strong style={{ color: colors.onDark }}>{tech.category}:</strong>{' '}
-                  {tech.items?.join(', ')}
+                  <div style={{ fontWeight: 'bold', color: colors.onDark, marginBottom: '2pt' }}>{tech.category}</div>
+                  <ul style={{ margin: '0 0 8pt 0', paddingLeft: '14pt', listStyleType: 'disc' }}>
+                    {tech.items?.map((item, j) => (
+                      <li key={j} style={{ color: colors.onDark, opacity: 0.85, fontSize: fs.body, lineHeight: 1.6 }}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
@@ -146,9 +150,11 @@ export default function ModernMinimalistBlock({ data, isPreview }: ResumeTemplat
               paddingBottom: sp.xs,
               borderBottom: `1px solid ${colors.onDarkMuted}`,
             }}>Soft Skills</h2>
-            <div style={{ fontSize: fs.body, lineHeight: 1.5 }}>
-              {data.skills.soft.join(', ')}
-            </div>
+            <ul style={{ margin: 0, paddingLeft: '14pt', listStyleType: 'disc', fontSize: fs.body }}>
+              {data.skills.soft.map((item, j) => (
+                <li key={j} style={{ color: colors.onDark, opacity: 0.85, lineHeight: 1.6 }}>{item}</li>
+              ))}
+            </ul>
           </div>
         )}
 

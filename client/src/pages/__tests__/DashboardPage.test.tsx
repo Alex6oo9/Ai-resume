@@ -4,36 +4,48 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from '../DashboardPage';
 import { ToastContext } from '../../contexts/ToastContext';
+import { AuthContext } from '../../contexts/AuthContext';
 import * as api from '../../utils/api';
 
 vi.mock('../../utils/api');
 
 const mockUser = { id: 'user-1', email: 'test@example.com', created_at: '2024-01-01' };
 const mockShowToast = vi.fn();
+const mockAuthValue = {
+  user: mockUser,
+  loading: false,
+  login: vi.fn(),
+  register: vi.fn(),
+  logout: vi.fn(),
+  setUser: vi.fn(),
+} as any;
 
 function renderDashboard() {
   return render(
-    <ToastContext.Provider value={{ showToast: mockShowToast }}>
-      <MemoryRouter>
-        <DashboardPage user={mockUser} />
-      </MemoryRouter>
-    </ToastContext.Provider>
+    <AuthContext.Provider value={mockAuthValue}>
+      <ToastContext.Provider value={{ showToast: mockShowToast }}>
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>
+      </ToastContext.Provider>
+    </AuthContext.Provider>
   );
 }
 
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (api.listCoverLetters as ReturnType<typeof vi.fn>).mockResolvedValue({ coverLetters: [] });
   });
 
-  it('renders Upload and Build action cards', () => {
+  it('renders Create New Resume and Analyze PDF action cards', () => {
     (api.listResumes as ReturnType<typeof vi.fn>).mockResolvedValue({
       resumes: [],
     });
     renderDashboard();
 
-    expect(screen.getByText('Upload Existing Resume')).toBeInTheDocument();
-    expect(screen.getByText('Build from Scratch')).toBeInTheDocument();
+    expect(screen.getByText('Create New Resume')).toBeInTheDocument();
+    expect(screen.getByText('Analyze PDF')).toBeInTheDocument();
   });
 
   it('calls listResumes on mount', async () => {
@@ -86,7 +98,7 @@ describe('DashboardPage', () => {
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getByText(/no resumes yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/no documents yet/i)).toBeInTheDocument();
     });
   });
 
@@ -121,6 +133,10 @@ describe('DashboardPage', () => {
       expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     });
 
+    // Open the card menu to reveal Delete button
+    const menuBtn = screen.getByLabelText(/menu for frontend developer/i);
+    await userEvent.click(menuBtn);
+
     expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
   });
 
@@ -149,6 +165,8 @@ describe('DashboardPage', () => {
       expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     });
 
+    // Open menu then click Delete
+    await user.click(screen.getByLabelText(/menu for frontend developer/i));
     await user.click(screen.getByRole('button', { name: /delete/i }));
 
     await waitFor(() => {
@@ -181,6 +199,8 @@ describe('DashboardPage', () => {
       expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     });
 
+    // Open menu then click Delete
+    await user.click(screen.getByLabelText(/menu for frontend developer/i));
     await user.click(screen.getByRole('button', { name: /delete/i }));
 
     expect(api.deleteResume).not.toHaveBeenCalled();

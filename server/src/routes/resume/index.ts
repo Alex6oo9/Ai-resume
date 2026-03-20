@@ -17,6 +17,7 @@ import {
   loadDraft,
 } from '../../controllers/resumeController';
 import { switchTemplate } from '../../controllers/templateController';
+import { parseResumeText, parseTextLimiter } from './parseText';
 
 const router = Router();
 
@@ -24,6 +25,7 @@ const router = Router();
 router.use(isAuthenticated);
 
 router.get('/', listResumes);
+router.post('/parse-text', parseTextLimiter, uploadMiddleware().single('file'), parseResumeText);
 router.post(
   '/upload',
   uploadMiddleware().single('file'),

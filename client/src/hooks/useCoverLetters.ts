@@ -84,7 +84,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     listCoverLettersByResumeApi(resumeId)
       .then((response) => {
         if (!cancelled) {
-          const letters = response.data.coverLetters;
+          const letters = response.coverLetters;
           setCoverLetters(letters);
           if (letters.length > 0) {
             setActiveLetter(letters[0]);
@@ -170,8 +170,8 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
         : { resumeId: payload.resumeId! };
 
       const res = await extractKeywordsApi(kwPayload, payload.jobDescription);
-      matchedKeywords = res.data.matchedKeywords;
-      missingKeywords = res.data.missingKeywords;
+      matchedKeywords = res.matchedKeywords;
+      missingKeywords = res.missingKeywords;
       setKeywords({ matched: matchedKeywords, missing: missingKeywords });
       setProgressStep('keywords-ready');
       await sleep(1200);
@@ -190,7 +190,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
       }
 
       const genRes = await generateCoverLetterApi(genPayload);
-      const newLetter = genRes.data.coverLetter;
+      const newLetter = genRes.coverLetter;
 
       setCoverLetters((prev) => [newLetter, ...prev]);
       setActiveLetter(newLetter);
@@ -213,7 +213,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     try {
       setProgressStep('generating');
       const res = await regenerateCoverLetterApi(letterId, payload);
-      const updated = res.data.coverLetter;
+      const updated = res.coverLetter;
       setCoverLetters((prev) => prev.map((cl) => (cl.id === letterId ? updated : cl)));
       setActiveLetter(updated);
       setProgressStep('done');
@@ -234,7 +234,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     setIsSaving(true);
     try {
       const response = await saveCoverLetterApi(activeLetter.id, content);
-      const updated = response.data.coverLetter;
+      const updated = response.coverLetter;
       setCoverLetters((prev) =>
         prev.map((cl) => (cl.id === activeLetter.id ? { ...cl, content: updated.content } : cl))
       );
@@ -285,7 +285,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     try {
       setProgressStep('generating');
       const res = await improveCoverLetterApi(letterId, { whyThisCompany, achievementToHighlight });
-      const updated = res.data.coverLetter;
+      const updated = res.coverLetter;
       setCoverLetters((prev) => prev.map((cl) => (cl.id === letterId ? updated : cl)));
       setActiveLetter(updated);
       setProgressStep('done');

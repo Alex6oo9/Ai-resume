@@ -98,7 +98,7 @@ const ATSLinedTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
   ].filter(Boolean).join(' | ');
 
   const skillGroups = [
-    ...data.skills.categories.filter((c) => c.category.trim() && c.items.length > 0),
+    ...data.skills.technical.filter((c) => c.category.trim() && c.items.length > 0),
     ...(data.skills.languages.filter((l) => l.language).length > 0
       ? [{
           category: 'Languages',

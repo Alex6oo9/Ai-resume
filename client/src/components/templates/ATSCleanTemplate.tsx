@@ -5,87 +5,15 @@ import { isEmptyRichText } from '../../utils/richText';
 const TEXT_DARK = '#000000';
 const TEXT_MUTED = '#333333';
 
-const styles = {
-  page: {
-    fontFamily: 'Arial, Helvetica, sans-serif',
-    fontSize: '11pt',
-    color: TEXT_DARK,
-    backgroundColor: '#ffffff',
-    padding: '0.6in 0.8in',
-    width: '100%',
-    minHeight: '100%',
-    boxSizing: 'border-box',
-    lineHeight: '1.5',
-  } as React.CSSProperties,
-
-  name: {
-    fontSize: '24pt',
-    fontWeight: 700,
-    color: TEXT_DARK,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '1px',
-    margin: '0 0 4pt 0',
-  } as React.CSSProperties,
-
-  contactLine: {
-    fontSize: '10pt',
-    color: TEXT_MUTED,
-    margin: '0 0 16pt 0',
-  } as React.CSSProperties,
-
-  section: {
-    marginBottom: '16pt',
-  } as React.CSSProperties,
-
-  sectionHeading: {
-    fontSize: '13pt',
-    fontWeight: 700,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.08em',
-    color: TEXT_DARK,
-    margin: '0 0 8pt 0',
-    paddingBottom: '4pt',
-    borderBottom: `1pt solid ${TEXT_DARK}`,
-  } as React.CSSProperties,
-
-  jobHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: '2pt',
-  } as React.CSSProperties,
-
-  jobTitle: {
-    fontSize: '11.5pt',
-    fontWeight: 700,
-    color: TEXT_DARK,
-    margin: 0,
-  } as React.CSSProperties,
-
-  jobMeta: {
-    fontSize: '11pt',
-    fontWeight: 700,
-    color: TEXT_MUTED,
-    margin: '0 0 4pt 0',
-  } as React.CSSProperties,
-
-  bulletList: {
-    margin: '4pt 0 12pt 0',
-    paddingLeft: '18pt',
-  } as React.CSSProperties,
-
-  skillRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    marginBottom: '4pt',
-    fontSize: '11pt',
-  } as React.CSSProperties,
-
-  skillCategory: {
-    fontWeight: 700,
-    color: TEXT_DARK,
-    flexShrink: 0,
-  } as React.CSSProperties,
+const sectionHeadingStyle: React.CSSProperties = {
+  fontSize: '13pt',
+  fontWeight: 'bold',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+  margin: '0 0 8pt 0',
+  paddingBottom: '4pt',
+  color: TEXT_DARK,
+  borderBottom: `1pt solid ${TEXT_DARK}`,
 };
 
 const ATSCleanTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
@@ -93,58 +21,86 @@ const ATSCleanTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
     data.email,
     data.phone,
     [data.city, data.country].filter(Boolean).join(', '),
-    data.linkedinUrl,
-    data.portfolioUrl,
-  ].filter(Boolean).join(' | ');
+    data.linkedinUrl ? data.linkedinUrl.replace(/^https?:\/\//, '') : '',
+    data.portfolioUrl ? data.portfolioUrl.replace(/^https?:\/\//, '') : '',
+  ].filter(Boolean);
 
-  const skillGroups = [
-    ...data.skills.categories.filter((c) => c.category.trim() && c.items.length > 0),
-    ...(data.skills.languages.filter((l) => l.language).length > 0
-      ? [{
-          category: 'Languages',
-          items: data.skills.languages.filter((l) => l.language).map(
-            (l) => `${l.language}${l.proficiency ? ` (${l.proficiency.charAt(0).toUpperCase() + l.proficiency.slice(1)})` : ''}`
-          ),
-        }]
-      : []),
-  ];
+  const hasSkills = data.skills.technical.length > 0 &&
+    data.skills.technical.some(c => c.category.trim() && c.items.length > 0);
+  const hasLanguages = data.skills.languages.length > 0 &&
+    data.skills.languages.some(l => l.language);
 
   return (
-    <div style={styles.page}>
+    <div
+      style={{
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        color: TEXT_DARK,
+        fontSize: '11pt',
+        lineHeight: '1.5',
+        padding: '0.6in 0.8in',
+        width: '100%',
+        minHeight: '100%',
+        boxSizing: 'border-box',
+        backgroundColor: '#ffffff',
+      }}
+    >
       <style>{`
-        .rich-content ul { list-style-type: disc; padding-left: 18pt; margin: 4pt 0; }
-        .rich-content ol { list-style-type: decimal; padding-left: 18pt; margin: 4pt 0; }
-        .rich-content li { margin-bottom: 2pt; }
-        .rich-content p { margin: 0; }
+        .ats-clean-rich-content ul { list-style-type: disc; padding-left: 18pt; margin: 4pt 0; }
+        .ats-clean-rich-content ol { list-style-type: decimal; padding-left: 18pt; margin: 4pt 0; }
+        .ats-clean-rich-content li { margin-bottom: 2pt; padding-left: 2pt; }
+        .ats-clean-rich-content p { margin: 4pt 0; }
       `}</style>
 
       {/* Header */}
-      <header style={{ textAlign: 'center', marginBottom: '16pt' }}>
-        <h1 style={styles.name}>{data.fullName || 'Your Name'}</h1>
-        <p style={styles.contactLine}>{contactParts || 'email@example.com | phone | location'}</p>
+      <header style={{ marginBottom: '16pt', textAlign: 'center' }}>
+        <h1 style={{
+          fontSize: '24pt',
+          fontWeight: 'bold',
+          margin: '0 0 4pt 0',
+          color: TEXT_DARK,
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+        }}>
+          {data.fullName || 'YOUR NAME'}
+        </h1>
+        {contactParts.length > 0 && (
+          <div style={{ fontSize: '10pt', color: TEXT_MUTED }}>
+            {contactParts.join('  |  ')}
+          </div>
+        )}
       </header>
 
       {/* Professional Summary */}
       {data.professionalSummary && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionHeading}>Professional Summary</h2>
-          <div style={{ margin: 0 }} dangerouslySetInnerHTML={{ __html: data.professionalSummary }} />
+        <section style={{ marginBottom: '16pt' }}>
+          <h2 style={{ ...sectionHeadingStyle, margin: '0 0 6pt 0' }}>Professional Summary</h2>
+          <p style={{ margin: 0, textAlign: 'justify', color: TEXT_MUTED }}>{data.professionalSummary}</p>
         </section>
       )}
 
       {/* Work Experience */}
-      {data.experience.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionHeading}>Work Experience</h2>
-          {data.experience.map((job, i) => (
+      {data.experience.length > 0 && data.experience[0].company && (
+        <section style={{ marginBottom: '16pt' }}>
+          <h2 style={sectionHeadingStyle}>Experience</h2>
+          {data.experience.map((exp, i) => (
             <div key={i} style={{ marginBottom: '12pt' }}>
-              <div style={styles.jobHeader}>
-                <h3 style={styles.jobTitle}>{job.role}</h3>
-                <span style={{ fontSize: '10.5pt', fontWeight: 700, color: TEXT_MUTED }}>{job.duration}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2pt' }}>
+                <h3 style={{ fontSize: '11.5pt', fontWeight: 'bold', margin: 0, color: TEXT_DARK }}>
+                  {exp.role || 'Job Title'}
+                </h3>
+                <span style={{ fontSize: '10.5pt', fontWeight: 'bold', color: TEXT_MUTED }}>
+                  {exp.duration}
+                </span>
               </div>
-              <p style={styles.jobMeta}>{job.company}</p>
-              {!isEmptyRichText(job.responsibilities) && (
-                <div className="rich-content" style={styles.bulletList} dangerouslySetInnerHTML={{ __html: job.responsibilities }} />
+              <div style={{ fontSize: '11pt', fontWeight: 'bold', color: TEXT_MUTED, marginBottom: '4pt' }}>
+                {exp.company || 'Company Name'}
+              </div>
+              {!isEmptyRichText(exp.responsibilities) && (
+                <div
+                  className="ats-clean-rich-content"
+                  style={{ fontSize: '10.5pt', color: TEXT_MUTED }}
+                  dangerouslySetInnerHTML={{ __html: exp.responsibilities }}
+                />
               )}
             </div>
           ))}
@@ -152,22 +108,27 @@ const ATSCleanTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
       )}
 
       {/* Projects */}
-      {data.projects.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionHeading}>Projects</h2>
+      {data.projects.length > 0 && data.projects[0].name && (
+        <section style={{ marginBottom: '16pt' }}>
+          <h2 style={sectionHeadingStyle}>Projects</h2>
           {data.projects.map((proj, i) => (
             <div key={i} style={{ marginBottom: '10pt' }}>
-              <div style={styles.jobHeader}>
-                <h3 style={styles.jobTitle}>{proj.name}</h3>
-                {proj.role && (
-                  <span style={{ fontSize: '10.5pt', fontWeight: 700, color: TEXT_MUTED }}>{proj.role}</span>
-                )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2pt' }}>
+                <h3 style={{ fontSize: '11.5pt', fontWeight: 'bold', margin: 0, color: TEXT_DARK }}>
+                  {proj.name || 'Project Name'}
+                </h3>
               </div>
-              {proj.technologies && (
-                <p style={styles.jobMeta}>Technologies: {proj.technologies}</p>
+              {proj.role && (
+                <div style={{ fontSize: '10.5pt', fontStyle: 'italic', color: TEXT_MUTED, marginBottom: '2pt' }}>
+                  {proj.role}{proj.technologies && ` | ${proj.technologies}`}
+                </div>
               )}
               {!isEmptyRichText(proj.description) && (
-                <div className="rich-content" style={{ margin: '4pt 0 0 0', fontSize: '10.5pt' }} dangerouslySetInnerHTML={{ __html: proj.description }} />
+                <div
+                  className="ats-clean-rich-content"
+                  style={{ fontSize: '10.5pt', color: TEXT_MUTED, marginTop: '4pt' }}
+                  dangerouslySetInnerHTML={{ __html: proj.description }}
+                />
               )}
             </div>
           ))}
@@ -175,46 +136,59 @@ const ATSCleanTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
       )}
 
       {/* Education */}
-      {data.education.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionHeading}>Education</h2>
-          {data.education.map((edu, i) => {
-            const degree = [edu.degreeType, edu.major].filter(Boolean).join(' in ');
-            return (
-              <div key={i} style={{ marginBottom: '10pt' }}>
-                <div style={styles.jobHeader}>
-                  <h3 style={styles.jobTitle}>{degree || edu.university}</h3>
-                  <span style={{ fontSize: '10.5pt', fontWeight: 700, color: TEXT_MUTED }}>{edu.graduationDate}</span>
-                </div>
-                <p style={styles.jobMeta}>
-                  {edu.university}
-                  {edu.gpa ? ` | GPA: ${edu.gpa}` : ''}
-                  {edu.honors ? ` | ${edu.honors}` : ''}
-                </p>
-                {!isEmptyRichText(edu.relevantCoursework) && (
-                  <div style={{ margin: '2pt 0 0 0', fontSize: '10.5pt', color: TEXT_MUTED }}>
-                    <span>Relevant Coursework: </span>
-                    <div className="rich-content" dangerouslySetInnerHTML={{ __html: edu.relevantCoursework! }} />
-                  </div>
-                )}
+      {data.education.length > 0 && data.education[0].university && (
+        <section style={{ marginBottom: '16pt' }}>
+          <h2 style={sectionHeadingStyle}>Education</h2>
+          {data.education.map((edu, i) => (
+            <div key={i} style={{ marginBottom: '10pt' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2pt' }}>
+                <h3 style={{ fontSize: '11.5pt', fontWeight: 'bold', margin: 0, color: TEXT_DARK }}>
+                  {edu.university || 'University Name'}
+                </h3>
+                <span style={{ fontSize: '10.5pt', fontWeight: 'bold', color: TEXT_MUTED }}>
+                  {edu.graduationDate}
+                </span>
               </div>
-            );
-          })}
+              <div style={{ fontSize: '11pt', color: TEXT_MUTED, marginBottom: '4pt' }}>
+                <span style={{ fontWeight: 'bold' }}>{edu.degreeType || 'Degree'}</span>
+                {edu.major && ` in ${edu.major}`}
+              </div>
+              {!isEmptyRichText(edu.relevantCoursework) && (
+                <div
+                  className="ats-clean-rich-content"
+                  style={{ fontSize: '10.5pt', color: TEXT_MUTED }}
+                  dangerouslySetInnerHTML={{ __html: edu.relevantCoursework! }}
+                />
+              )}
+            </div>
+          ))}
         </section>
       )}
 
-      {/* Skills */}
-      {skillGroups.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionHeading}>Skills</h2>
+      {/* Skills & Languages */}
+      {(hasSkills || hasLanguages) && (
+        <section style={{ marginBottom: '16pt' }}>
+          <h2 style={sectionHeadingStyle}>Skills & Expertise</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4pt' }}>
-            {skillGroups.map((group, i) =>
-              group.items.length > 0 && (
-                <div key={i} style={styles.skillRow}>
-                  <span style={styles.skillCategory}>{group.category}:&nbsp;</span>
-                  <span style={{ color: TEXT_MUTED }}>{group.items.join(', ')}</span>
+            {hasSkills && data.skills.technical.map((cat, i) => {
+              if (!cat.category.trim() || cat.items.length === 0) return null;
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'baseline' }}>
+                  <span style={{ fontWeight: 'bold', width: '120pt', flexShrink: 0, color: TEXT_DARK }}>{cat.category}:</span>
+                  <span style={{ flex: 1, color: TEXT_MUTED }}>{cat.items.join(', ')}</span>
                 </div>
-              )
+              );
+            })}
+            {hasLanguages && (
+              <div style={{ display: 'flex', alignItems: 'baseline', marginTop: hasSkills ? '4pt' : '0' }}>
+                <span style={{ fontWeight: 'bold', width: '120pt', flexShrink: 0, color: TEXT_DARK }}>Languages:</span>
+                <span style={{ flex: 1, color: TEXT_MUTED }}>
+                  {data.skills.languages
+                    .filter(l => l.language)
+                    .map(l => `${l.language}${l.proficiency ? ` (${l.proficiency})` : ''}`)
+                    .join(', ')}
+                </span>
+              </div>
             )}
           </div>
         </section>
@@ -222,12 +196,11 @@ const ATSCleanTemplate: React.FC<ResumeTemplateProps> = ({ data }) => {
 
       {/* Certifications */}
       {!isEmptyRichText(data.certifications) && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionHeading}>Certifications</h2>
-          <div className="rich-content" dangerouslySetInnerHTML={{ __html: data.certifications! }} />
+        <section style={{ marginBottom: '16pt' }}>
+          <h2 style={sectionHeadingStyle}>Certifications</h2>
+          <div className="ats-clean-rich-content" dangerouslySetInnerHTML={{ __html: data.certifications! }} />
         </section>
       )}
-
     </div>
   );
 };

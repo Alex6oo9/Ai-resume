@@ -9,8 +9,9 @@ React 18 + TypeScript + Vite SPA that communicates with the Express backend via 
 ```typescript
 // client/src/utils/api.ts
 const apiClient = axios.create({
-  baseURL: '/api',  // All requests are prefixed with /api
+  baseURL: '/api',        // All requests are prefixed with /api
   withCredentials: true,  // Sends session cookies
+  timeout: 10000,         // 10-second timeout
 });
 ```
 
@@ -18,6 +19,13 @@ const apiClient = axios.create({
 - ✅ `apiClient.post('/auth/login', data)`
 - ✅ `apiClient.get('/resume/list')`
 - ❌ `apiClient.post('/api/auth/login', data)` (creates `/api/api/auth/login`)
+
+### Response Interceptors
+Axios interceptors dispatch DOM events consumed by `ConnectivityContext`:
+- Successful response → dispatches `server:up` event
+- Network error (no response) → dispatches `server:down` event with error code
+- HTTP 5xx → dispatches `server:error` event with status code
+- 401/403 → passes through silently (handled by auth flow)
 
 ## Authentication Flow
 
@@ -32,11 +40,51 @@ const apiClient = axios.create({
 
 ### Auth State Management
 ```typescript
-// client/src/hooks/useAuth.ts
-const { user, loading, login, register, logout } = useAuth();
+// client/src/contexts/AuthContext.tsx
+// AuthProvider wraps useAuth() once at the top level; consumers call:
+const { user, loading, login, register, logout, setUser } = useAuthContext();
 // user: { id: string, email: string, name?: string } | null
 // register(email, password, name?) — no auto-login, returns void
 ```
+
+## Context Provider Stack
+
+The app wraps three providers in this order (outermost first):
+
+```
+ThemeProvider
+  ConnectivityProvider
+    AuthProvider
+      RouterProvider (AppLayout + ProtectedLayout)
+```
+
+### ThemeProvider (`client/src/contexts/ThemeContext.tsx`)
+- Manages dark/light mode preference
+- Reads `localStorage` for saved preference; falls back to `prefers-color-scheme` on first visit
+- Adds/removes `dark` class on `document.documentElement` for Tailwind dark: utilities
+- `useTheme()` returns `{ isDark: boolean, toggleTheme: () => void }`
+
+### ConnectivityProvider (`client/src/contexts/ConnectivityContext.tsx`)
+- Monitors server health via axios interceptor events
+- When server is detected down: polls `GET /api/health` every 10 seconds
+- `useConnectivity()` returns:
+  ```typescript
+  {
+    isServerDown: boolean;      // true on ECONNREFUSED / ETIMEDOUT
+    isServerDegraded: boolean;  // true on HTTP 5xx
+    retryCount: number;
+    manualRetry: () => void;    // triggers immediate health check
+  }
+  ```
+- Dispatches custom DOM events: `server:down`, `server:error`, `server:up`, `server:recovered`
+- Polling only starts after first failure (event-driven, not continuous)
+
+### Server-Down UX (`client/src/components/shared/ServerDownBanner.tsx`)
+- Sticky alert rendered in `AppLayout` (visible on all pages)
+- Red banner when `isServerDown`: "Unable to reach the server. Retrying automatically…"
+- Yellow banner when `isServerDegraded`: "Server is experiencing issues. Some features may be unavailable."
+- "Retry now" button calls `manualRetry()`
+- Listens to `server:recovered` event to show success toast and auto-dismiss
 
 ### Auth Pages
 - `/login` — supports `?verified=true` and `?reset=true` success banners
@@ -146,6 +194,7 @@ interface AdditionalLink {
 - `GET /resume/:id/file` → Binary PDF (`application/pdf`) — **Path A only**; 404 if no uploaded file
 - `POST /resume/build` — `{ ...ResumeFormData, templateId }` → `{ resume }`
 - `POST /resume/upload` — `multipart/form-data` with `file` (PDF, max 5MB) + `targetRole`, `targetCountry`, `targetCity?`, `jobDescription?` → `{ resume }`
+- `POST /resume/parse-text` — `multipart/form-data` with `file` (PDF) → parsed text (rate-limited)
 - `DELETE /resume/:id` → `{ message }`
 - `POST /resume/:id/switch-template` — `{ templateId: string (UUID) }` → `{ message, template }`
   - Returns 403 if user's subscription tier is too low for the template
@@ -185,6 +234,37 @@ interface AnalysisHistoryEntry {
   - Client renders React template to HTML via `flushSync`+`createRoot`, then POSTs the full HTML string
   - Request body up to 10 MB (base64 photos)
 - `GET /export/markdown/:resumeId` → Markdown file download (`text/markdown`)
+
+### Cover Letters
+Multiple cover letters allowed per resume (migration 027 dropped `UNIQUE(resume_id)`). Letters are keyed by their own UUID, not by `resumeId`.
+
+- `GET /cover-letter/` → `{ letters: CoverLetter[] }` — all letters for current user (limit 10, DESC by updated_at)
+- `GET /cover-letter/resume/:resumeId` → `{ letters: CoverLetter[] }` — all letters attached to a specific resume
+- `GET /cover-letter/:id` → `{ letter: CoverLetter }` — single letter by UUID
+- `POST /cover-letter/extract-keywords` — `{ resumeId?, resumeText?, jobDescription }` → `{ keywords: { matched: string[], missing: string[] } }`
+- `POST /cover-letter/generate` — `{ resumeId?, resumeText?, jobTitle, companyName, jobDescription, tone?, wordCountTarget?, keywords?, whyThisCompany?, achievementToHighlight? }` → `{ letter: CoverLetter }`
+- `PUT /cover-letter/:id` — `{ content: string }` → `{ letter: CoverLetter }`
+- `DELETE /cover-letter/:id` → `{ message }`
+- `POST /cover-letter/:id/regenerate` — `{ jobTitle, companyName, jobDescription, tone?, wordCountTarget?, keywords?, whyThisCompany?, achievementToHighlight? }` → `{ letter: CoverLetter }` — requires letter to have a `resume_id` (standalone letters cannot be regenerated)
+- `POST /cover-letter/:id/improve` — `{ whyThisCompany?, achievementToHighlight? }` → `{ letter: CoverLetter }`
+
+```typescript
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'formal' | 'conversational';
+export type CoverLetterLength = 'short' | 'medium' | 'long';  // word targets: 150 / 250 / 400
+
+interface CoverLetter {
+  id: string;
+  resume_id: string | null;   // null for standalone letters
+  user_id: string;
+  job_title: string | null;   // added in migration 027
+  content: string;
+  generated_content: string;
+  tone: string;
+  word_count_target: number;
+  created_at: string;
+  updated_at: string;
+}
+```
 
 ## Data Transformation Notes
 
@@ -233,16 +313,58 @@ Client axios interceptor:
 - Shows toast notifications for failed requests
 
 ## Client-Side Routes
-- `/` — Home page
-- `/login` — Login
-- `/register` — Register
-- `/dashboard` — User dashboard (protected)
-- `/upload` — Resume upload (protected)
-- `/build` — New resume builder (protected)
-- `/build/:id` — Edit existing resume (protected)
-- `/resume/:id` — Resume analysis page (protected)
 
-All routes except `/`, `/login`, `/register` require authentication.
+Router uses `createBrowserRouter` with data router pattern (required for `useBlocker` navigation guards):
+- **AppLayout** — layout route: renders `Header` + `<Outlet>` + toast notifications; handles loading spinner
+- **ProtectedLayout** — layout route: redirects to `/login` if not authenticated via `useAuthContext()`
+
+Routes:
+- `/` — Home page (public)
+- `/login` — Login (public)
+- `/register` — Register (public)
+- `/dashboard` — User dashboard (protected) — bento grid layout with unified document grid
+- `/upload` — Resume upload (protected)
+- `/build` — New resume builder (protected, includes `useBlocker` for unsaved changes)
+- `/build/:id` — Edit existing resume (protected, includes `useBlocker` for unsaved changes)
+- `/resume/:id` — Resume analysis page (protected)
+- `/cover-letter/new` — Cover letter editor (protected)
+- `/verify-email` — Email verification (public, shown after register)
+- `/forgot-password` — Password reset request (public)
+- `/reset-password` — Password reset form (public)
+- `/thumbnail-preview?template=<templateId>` — **Unauthenticated, no header** — renders a template with sample data at 816×1056px; used by Puppeteer screenshot script; signals readiness via `data-thumbnail-ready="true"` attribute
+
+Authentication: `ProtectedRoute.tsx` was deleted; `ProtectedLayout` layout route handles redirects based on `useAuthContext()`.
+
+Header is hidden on `/build*` and `/thumbnail-preview` routes (full-page builder / screenshot target).
+
+## UI Component Library
+
+### Primitive Components (`client/src/components/ui/`)
+Reusable styled primitives used throughout the app:
+
+| File | Export | Purpose |
+|------|--------|---------|
+| `button.tsx` | `Button` | Variants: `default`, `outline`, `ghost`; sizes: `default`, `sm`, `icon` |
+| `input.tsx` | `Input` | Styled `<input>` with focus ring, hover states |
+| `label.tsx` | `Label` | `<label>` with peer-disabled handling |
+| `select.tsx` | `Select` | Context-pattern select with accessibility |
+| `textarea.tsx` | `Textarea` | Min 120px height, resize-y, consistent styling |
+
+### Tailwind Class Utility (`client/src/lib/utils.ts`)
+```typescript
+import { cn } from '../lib/utils';
+// cn() merges clsx + tailwind-merge — safely combines conditional Tailwind classes
+cn('px-4', isActive && 'bg-primary', 'rounded')
+```
+
+---
+
+## Navigation Guards
+
+### Unsaved Form Prevention
+- `ConfirmLeaveModal` + `useBlocker` in `ResumeBuilderPage`: shows "Leave page?" confirmation when user tries to navigate away (via link, back button, close tab) with unsaved form changes
+- Works only with the data router (`createBrowserRouter`) — required for `useBlocker` hook
+- Modal wraps `<RouterProvider>` to intercept all navigation
 
 ## ResumeAnalysisPage Features (Phase 5)
 
@@ -271,52 +393,53 @@ All routes except `/`, `/login`, `/register` require authentication.
 ```typescript
 // client/src/components/templates/types.ts
 type TemplateId =
-  | 'modern_minimal'
-  | 'creative_bold'
-  | 'professional_classic'
-  | 'tech_focused'
-  | 'healthcare_pro'
-  | 'warm_creative'
-  | 'sleek_director'
+  | 'modern'               // default (sort_order=0)
+  | 'modern_yellow_split'
   | 'dark_ribbon_modern'
   | 'modern_minimalist_block'
-  | 'editorial_earth_tone';
+  | 'editorial_earth_tone'
+  | 'ats_clean'
+  | 'ats_lined';
 ```
 
 ### Per-Template Components
 Each template is a self-contained React component in `client/src/components/templates/`.
 Templates own all their layout, padding, colors, and section rendering — no shared config object.
+Templates use inline styles only (no Tailwind) for Puppeteer PDF compatibility.
 
-| TemplateId                  | Layout                  | Accent Color                | Photo |
-|-----------------------------|-------------------------|-----------------------------|-------|
-| `modern_minimal`            | Single-column           | Blue `#2563eb`              | yes   |
-| `creative_bold`             | 2-col sidebar           | Purple `#7c3aed`            | yes   |
-| `professional_classic`      | Single-column           | Navy `#1e3a5f` + gold       | yes   |
-| `tech_focused`              | Skills-first            | Sky `#0ea5e9`               | no    |
-| `healthcare_pro`            | Teal header band        | Teal `#0f766e`              | yes   |
-| `warm_creative`             | Warm header band        | Terracotta `#d84315`        | yes   |
-| `sleek_director`            | Cylinder sidebar        | Charcoal + gray, timeline   | yes   |
-| `dark_ribbon_modern`        | 2-col dark sidebar      | Charcoal `#2b2b2b`, ribbon  | yes   |
-| `modern_minimalist_block`   | 2-col dark sidebar      | Charcoal `#454545`          | yes   |
-| `editorial_earth_tone`      | 2-col pill sidebar      | Earth tones `#483930`       | yes   |
+| TemplateId                  | Layout                           | Accent Color                          | Photo | Thumbnail |
+|-----------------------------|----------------------------------|---------------------------------------|-------|-----------|
+| `modern`                    | Single-column centered header    | White, Inter font                     | yes   | `/thumbnails/modern.png` |
+| `modern_yellow_split`       | 2-col yellow split               | Yellow accent                         | yes   | `/thumbnails/modern_yellow_split.png` |
+| `dark_ribbon_modern`        | 2-col dark sidebar               | Charcoal `#2b2b2b`, ribbon headers    | yes   | `/thumbnails/dark_ribbon_modern.png` |
+| `modern_minimalist_block`   | 2-col dark sidebar               | Charcoal `#454545`                    | yes   | `/thumbnails/modern_minimalist_block.png` |
+| `editorial_earth_tone`      | 2-col vertical pill sidebar      | Earth tones `#483930`, beige bg       | yes   | `/thumbnails/editorial_earth_tone.png` |
+| `ats_clean`                 | Single-column, no sidebar        | White `#ffffff`, text `#222222`       | no    | `/thumbnails/ats_clean.png` |
+| `ats_lined`                 | Single-column, no sidebar        | Navy `#1a3557`, border-bottom h2      | no    | `/thumbnails/ats_lined.png` |
 
 ### Key Files
 - `client/src/components/templates/types.ts` — `TemplateId`, `ResumeTemplateProps`
-- `client/src/components/templates/helpers/renderingHelpers.ts` — `formatHeading()`, `parseResponsibilities()`
-- `client/src/components/templates/ResumeTemplateSwitcher.tsx` — resolves templateId → component
-- `client/src/components/live-preview/templateTypes.ts` — simplified registry (`TemplateBasicInfo[]`) for the picker UI only
-- `client/src/components/live-preview/TemplateRenderer.tsx` — thin shim → ResumeTemplateSwitcher
+- `client/src/components/templates/ResumeTemplateSwitcher.tsx` — resolves templateId → component; defaults to `ModernTemplate`
+- `client/src/components/live-preview/templateTypes.ts` — simplified registry (`TemplateBasicInfo[]`) for the picker UI — 7 templates, all `isPremium: false`; re-exports `TemplateId`; includes `thumbnailUrl` pointing to `/thumbnails/{id}.png`
 
 ### Photo Support
 Photo upload is shown in PersonalInfoStep when the selected template supports it.
 Check via the `SUPPORTS_PHOTO` constant in `ResumeBuilderPage.tsx`:
 ```typescript
 const SUPPORTS_PHOTO: Record<string, boolean> = {
-  modern_minimal: true, creative_bold: true, professional_classic: true,
-  healthcare_pro: true, warm_creative: true, sleek_director: true,
-  dark_ribbon_modern: true, modern_minimalist_block: true, editorial_earth_tone: true,
+  modern: true,
+  modern_yellow_split: true,
+  dark_ribbon_modern: true,
+  modern_minimalist_block: true,
+  editorial_earth_tone: true,
+  // ats_clean and ats_lined do NOT support photo
 };
 ```
+
+### Template Thumbnails
+Static PNG thumbnails (816×1056px, 2x scale) in `client/public/thumbnails/`.
+Generated via `npm run generate:thumbnails` in the server package (requires both dev servers running).
+See `context/Thumbnail.md` for the full generation workflow.
 
 ### Hooks
 ```typescript
@@ -326,6 +449,19 @@ const { templates, userTier, loading } = useTemplates();
 // Switch template for a resume
 const { doSwitch, switching, error } = useTemplateSwitch(resumeId, onSwitch);
 ```
+
+## E2E Tests (Playwright)
+
+- Config: `client/playwright.config.ts`
+- Tests: `client/e2e/`
+- Browser: Chromium, 1 worker (sequential)
+- Base URL: `http://localhost:5173`
+- Run: `npx playwright test` (from `client/`)
+
+Current test suites:
+- `e2e/confirm-leave.spec.ts` — 5 tests for `ConfirmLeaveModal` (unsaved changes guard): modal appears on nav-away, "Leave anyway" navigates, "Keep editing" stays, dark mode styling, no modal on fresh form
+
+---
 
 ## Development Server
 - Port: 5173 (Vite default, may use 5174/5175 if occupied)

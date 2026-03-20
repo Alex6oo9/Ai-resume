@@ -13,7 +13,7 @@ interface GenerateCoverLetterParams {
   fullName: string;
   targetRole: string;
   targetLocation: string;
-  jobDescription: string;
+  jobDescription: string | null;
   matchedKeywords: string[];
   missingKeywords: string[];
   tone: CoverLetterTone;
@@ -39,7 +39,7 @@ export async function generateCoverLetter(params: GenerateCoverLetterParams): Pr
     customInstructions,
   } = params;
 
-  const sanitizedJd = sanitizePromptInput(jobDescription).slice(0, 2000);
+  const sanitizedJd = jobDescription ? sanitizePromptInput(jobDescription).slice(0, 2000) : 'Not provided';
   const sanitizedInstructions = customInstructions ? sanitizePromptInput(customInstructions) : null;
   const truncatedResumeText = resumeText.slice(0, 3000);
   const wordCount = WORD_COUNT_MAP[wordCountTarget];

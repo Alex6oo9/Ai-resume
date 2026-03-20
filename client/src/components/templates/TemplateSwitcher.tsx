@@ -16,8 +16,6 @@ const CATEGORIES = [
   { value: 'all', label: 'All' },
   { value: 'modern', label: 'Modern' },
   { value: 'ats', label: 'ATS' },
-  { value: 'creative', label: 'Creative' },
-  { value: 'professional', label: 'Professional' },
 ] as const;
 
 export default function TemplateSwitcher({
@@ -63,7 +61,7 @@ export default function TemplateSwitcher({
 
   if (error) {
     return (
-      <div className="text-center py-16 text-red-600">
+      <div className="text-center py-16 text-destructive">
         <p className="font-medium">Failed to load templates</p>
         <p className="text-sm mt-1">{error}</p>
       </div>
@@ -75,21 +73,21 @@ export default function TemplateSwitcher({
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Choose a Template</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-2xl font-bold text-foreground">Choose a Template</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             {resumeId
               ? 'Switch templates anytime — your content is always preserved'
               : 'Preview templates — save a draft to persist your selection'}
           </p>
           {userTier !== 'free' && (
-            <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full capitalize">
+            <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400 px-2 py-0.5 rounded-full capitalize">
               ✨ {userTier} plan
             </span>
           )}
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-2xl flex-shrink-0"
+          className="text-muted-foreground hover:text-foreground w-9 h-9 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-2xl flex-shrink-0"
         >
           &times;
         </button>
@@ -105,7 +103,7 @@ export default function TemplateSwitcher({
               ${
                 category === cat.value
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-muted text-foreground hover:bg-accent'
               }`}
           >
             {cat.label}
@@ -126,7 +124,7 @@ export default function TemplateSwitcher({
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-muted-foreground">
           <p>No templates in this category</p>
         </div>
       )}
@@ -134,9 +132,9 @@ export default function TemplateSwitcher({
       {/* Switching overlay */}
       {switching && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4 shadow-2xl">
+          <div className="bg-card rounded-xl p-8 flex flex-col items-center gap-4 shadow-2xl">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-            <p className="font-medium text-gray-700">Switching template...</p>
+            <p className="font-medium text-foreground">Switching template...</p>
           </div>
         </div>
       )}

@@ -22,7 +22,7 @@ function ScoreDonut({ score }: { score: number }) {
         cy={cy}
         r={r}
         fill="none"
-        stroke="#e5e7eb"
+        stroke="var(--donut-track, #e5e7eb)"
         strokeWidth="12"
       />
       {/* Foreground arc */}
@@ -57,7 +57,8 @@ function ScoreDonut({ score }: { score: number }) {
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize="11"
-        fill="#6b7280"
+        fill="currentColor"
+        className="text-muted-foreground"
       >
         /100
       </text>
@@ -74,14 +75,14 @@ export default function AtsScoreCard({
     return (
       <div
         data-testid="ats-loading"
-        className="animate-pulse rounded-lg border border-gray-200 bg-white p-6"
+        className="animate-pulse rounded-lg border border-border bg-card p-6"
       >
-        <div className="mb-4 h-6 w-36 rounded bg-gray-200" />
-        <div className="mb-4 h-32 w-32 rounded-full bg-gray-200 mx-auto" />
+        <div className="mb-4 h-6 w-36 rounded bg-muted" />
+        <div className="mb-4 h-32 w-32 rounded-full bg-muted mx-auto" />
         <div className="space-y-3">
-          <div className="h-4 w-full rounded bg-gray-200" />
-          <div className="h-4 w-full rounded bg-gray-200" />
-          <div className="h-4 w-full rounded bg-gray-200" />
+          <div className="h-4 w-full rounded bg-muted" />
+          <div className="h-4 w-full rounded bg-muted" />
+          <div className="h-4 w-full rounded bg-muted" />
         </div>
       </div>
     );
@@ -89,11 +90,11 @@ export default function AtsScoreCard({
 
   if (!atsBreakdown) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-2 text-lg font-semibold text-gray-900">
+      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-semibold text-foreground">
           ATS Compatibility
         </h2>
-        <p className="mb-4 text-sm text-gray-600">
+        <p className="mb-4 text-sm text-muted-foreground">
           Check how well your resume passes Applicant Tracking Systems.
         </p>
         <button
@@ -113,8 +114,8 @@ export default function AtsScoreCard({
   ];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">
+    <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">
         ATS Compatibility
       </h2>
 
@@ -125,8 +126,8 @@ export default function AtsScoreCard({
       <div className="mb-6 space-y-2">
         {subScores.map(({ label, value, max }) => (
           <div key={label} className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">{label}</span>
-            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-400">
               {value}/{max}
             </span>
           </div>
@@ -142,7 +143,7 @@ export default function AtsScoreCard({
             {atsBreakdown.keywords.matched.map((k, i) => (
               <span
                 key={i}
-                className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700"
+                className="rounded-full bg-green-100 dark:bg-green-950/40 px-2 py-0.5 text-xs text-green-700 dark:text-green-400"
               >
                 {k}
               </span>
@@ -158,7 +159,7 @@ export default function AtsScoreCard({
             {atsBreakdown.keywords.missing.map((k, i) => (
               <span
                 key={i}
-                className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700"
+                className="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400"
               >
                 {k}
               </span>

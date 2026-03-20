@@ -1,12 +1,10 @@
 import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthContext } from '../contexts/AuthContext';
 import { resendVerification } from '../utils/api';
 
-interface RegisterPageProps {
-  onRegister: (email: string, password: string, name?: string) => Promise<unknown>;
-}
-
-export default function RegisterPage({ onRegister }: RegisterPageProps) {
+export default function RegisterPage() {
+  const { register: onRegister } = useAuthContext();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,8 +60,8 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">Check your email</h2>
-          <p className="mb-6 text-gray-600">
+          <h2 className="mb-2 text-2xl font-bold text-foreground">Check your email</h2>
+          <p className="mb-6 text-muted-foreground">
             We sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.
           </p>
           <button
@@ -73,7 +71,7 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
           >
             {resendStatus === 'sending' ? 'Sending...' : resendStatus === 'sent' ? 'Verification link resent' : "Didn't receive it? Resend"}
           </button>
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-muted-foreground">
             <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
               Back to Sign In
             </Link>
@@ -86,32 +84,32 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-900">
+        <h2 className="mb-6 text-center text-2xl font-bold text-foreground">
           Create your account
         </h2>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Name <span className="text-gray-400">(optional)</span>
+            <label htmlFor="name" className="block text-sm font-medium text-foreground">
+              Name <span className="text-muted-foreground">(optional)</span>
             </label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -120,12 +118,12 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground">
               Password
             </label>
             <input
@@ -135,12 +133,12 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
               Confirm Password
             </label>
             <input
@@ -149,7 +147,7 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -162,7 +160,7 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
           <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
             Sign in

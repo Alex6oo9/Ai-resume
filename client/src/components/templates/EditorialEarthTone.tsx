@@ -226,15 +226,25 @@ export default function EditorialEarthTone({ data, isPreview: _isPreview }: Resu
                             {skills?.technical && skills.technical.length > 0 && (
                                 <div style={{ marginBottom: '0.1in' }}>
                                     {skills.technical.map((tech, idx) => (
-                                        <div key={idx} style={{ marginBottom: '0.05in' }}>
-                                            <span style={{ fontWeight: 700, color: '#483930' }}>{tech.category}:</span> {tech.items.join(', ')}
+                                        <div key={idx}>
+                                            <div style={{ fontWeight: 700, color: '#483930', marginBottom: '2pt' }}>{tech.category}</div>
+                                            <ul style={{ margin: '0 0 6pt 0', paddingLeft: '14pt', listStyleType: 'disc' }}>
+                                                {tech.items.map((item, j) => (
+                                                    <li key={j} style={{ fontSize: '9.5pt', lineHeight: 1.6 }}>{item}</li>
+                                                ))}
+                                            </ul>
                                         </div>
                                     ))}
                                 </div>
                             )}
                             {skills?.soft && skills.soft.length > 0 && (
                                 <div style={{ marginBottom: '0.1in' }}>
-                                    <span style={{ fontWeight: 700, color: '#483930' }}>Soft Skills:</span> {skills.soft.join(', ')}
+                                    <div style={{ fontWeight: 700, color: '#483930', marginBottom: '2pt' }}>Soft Skills</div>
+                                    <ul style={{ margin: 0, paddingLeft: '14pt', listStyleType: 'disc' }}>
+                                        {skills.soft.map((item, j) => (
+                                            <li key={j} style={{ fontSize: '9.5pt', lineHeight: 1.6 }}>{item}</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                             {skills?.languages && skills.languages.filter(l => l.language).length > 0 && (

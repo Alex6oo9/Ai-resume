@@ -34,11 +34,8 @@ export function usePreviewZoom() {
     setZoomRaw(clamp(fit, MIN_ZOOM, MAX_ZOOM));
   }, []);
 
-  // Auto fit-to-width on mount and resize
+  // Fit-to-width on resize only (mount starts at 100%)
   useEffect(() => {
-    // Initial fit after layout
-    const raf = requestAnimationFrame(() => fitToWidth());
-
     let timer: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(timer);
@@ -47,7 +44,6 @@ export function usePreviewZoom() {
 
     window.addEventListener('resize', handleResize);
     return () => {
-      cancelAnimationFrame(raf);
       clearTimeout(timer);
       window.removeEventListener('resize', handleResize);
     };

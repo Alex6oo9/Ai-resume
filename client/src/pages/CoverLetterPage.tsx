@@ -8,6 +8,37 @@ import { useCoverLetters } from '../hooks/useCoverLetters';
 import { useAuth } from '../hooks/useAuth';
 import type { CoverLetter, CoverLetterTone, CoverLetterLength } from '../types';
 
+// ─── Demo Data ───────────────────────────────────────────────────────────────
+
+const DEMO_DATA = {
+  companyName: 'Stripe',
+  jobTitle: 'Software Engineer, Payments Infrastructure',
+  hiringManagerName: 'Alex Johnson',
+  tone: 'professional' as CoverLetterTone,
+  length: 'medium' as CoverLetterLength,
+  jobDescription: `About the role
+We are looking for a Software Engineer to join Stripe's Payments Infrastructure team. You will build and scale the core systems that power billions of dollars in transactions worldwide.
+
+Responsibilities
+- Design and implement reliable, high-throughput payment processing systems
+- Collaborate with cross-functional teams across product, design, and operations
+- Write clean, testable TypeScript/Go code with thorough documentation
+- Participate in on-call rotations and incident response
+- Drive technical design reviews and mentor junior engineers
+
+Qualifications
+- Bachelor's degree in Computer Science or equivalent practical experience
+- 1–3 years of software engineering experience (internships count)
+- Proficiency in at least one of: TypeScript, Go, Java, Python
+- Understanding of distributed systems, APIs, and databases
+- Strong communication skills and a bias toward action
+
+Nice to have
+- Experience with payment systems or financial technology
+- Familiarity with AWS, Kubernetes, or similar infrastructure tooling
+- Open-source contributions`,
+};
+
 // ─── SVG Icons (inline, no lucide-react dependency) ─────────────────────────
 
 const ChevronLeftIcon = () => (
@@ -65,6 +96,12 @@ const UploadIcon = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="17 8 12 3 7 8" />
     <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+const FlaskConicalIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 2v7.31" /><path d="M14 9.3V1.99" /><path d="M8.5 2h7" /><path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.58 16.5h12.85" />
   </svg>
 );
 
@@ -366,6 +403,15 @@ export default function CoverLetterPage() {
     }
   }, [progressStep]);
 
+  const fillDemoData = () => {
+    setCompanyName(DEMO_DATA.companyName);
+    setJobTitle(DEMO_DATA.jobTitle);
+    setHiringManagerName(DEMO_DATA.hiringManagerName);
+    setJobDescription(DEMO_DATA.jobDescription);
+    setTone(DEMO_DATA.tone);
+    setLength(DEMO_DATA.length);
+  };
+
   const buildPayload = useCallback(() => ({
     resumeId: resumeInputMode === 'existing' ? selectedResumeId : undefined,
     resumeText: resumeInputMode === 'upload' ? uploadedResumeText ?? undefined : undefined,
@@ -535,7 +581,7 @@ export default function CoverLetterPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-950">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* ── Dialogs ──────────────────────────────────────────────────────── */}
       {showRegenConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -602,6 +648,17 @@ export default function CoverLetterPage() {
                 onToggle={() => setSettingsOpen((o) => !o)}
               >
                 <div className="space-y-4">
+                  {/* Fill demo data */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={fillDemoData}
+                      className="flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-2.5 py-1 text-xs text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-gray-400 dark:hover:text-gray-300"
+                    >
+                      <FlaskConicalIcon />
+                      Fill demo data
+                    </button>
+                  </div>
                   {/* Section: Your Resume */}
                   <div>
                     <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Your Resume</p>
@@ -908,7 +965,7 @@ export default function CoverLetterPage() {
                           {letter.company_name || 'No company'}
                         </div>
                         <div className="truncate text-gray-400">
-                          {letter.job_title || letter.resume_target_role || 'Cover Letter'}
+                          {letter.job_title || 'Cover Letter'}
                         </div>
                         <div className="text-gray-400">{formatRelativeDate(letter.updated_at)}</div>
                       </div>

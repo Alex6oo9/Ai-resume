@@ -33,19 +33,19 @@ export default function ProjectsStep({ data, onChange }: Props) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-gray-900">Projects</h2>
-      <p className="text-sm text-gray-600">
+      <h2 className="text-lg font-semibold text-foreground">Projects</h2>
+      <p className="text-sm text-muted-foreground">
         Showcase 2-3 relevant projects to demonstrate your skills.
       </p>
 
       {data.projects.length === 0 && (
-        <p className="text-sm italic text-gray-500">No projects added yet.</p>
+        <p className="text-sm italic text-muted-foreground">No projects added yet.</p>
       )}
 
       {data.projects.map((proj, index) => (
-        <div key={index} className="space-y-3 rounded-lg border border-gray-200 p-4">
+        <div key={index} className="space-y-3 rounded-lg border border-border p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-foreground">
               Project #{index + 1}
             </h3>
             <button
@@ -59,7 +59,7 @@ export default function ProjectsStep({ data, onChange }: Props) {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor={`projName-${index}`} className="block text-sm font-medium text-gray-700">
+              <label htmlFor={`projName-${index}`} className="block text-sm font-medium text-foreground">
                 Project Name
               </label>
               <input
@@ -67,12 +67,12 @@ export default function ProjectsStep({ data, onChange }: Props) {
                 type="text"
                 value={proj.name}
                 onChange={(e) => updateEntry(index, 'name', e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label htmlFor={`projRole-${index}`} className="block text-sm font-medium text-gray-700">
+              <label htmlFor={`projRole-${index}`} className="block text-sm font-medium text-foreground">
                 Your Role
               </label>
               <input
@@ -81,12 +81,12 @@ export default function ProjectsStep({ data, onChange }: Props) {
                 value={proj.role}
                 onChange={(e) => updateEntry(index, 'role', e.target.value)}
                 placeholder="e.g. Lead Developer"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label htmlFor={`projTech-${index}`} className="block text-sm font-medium text-gray-700">
+              <label htmlFor={`projTech-${index}`} className="block text-sm font-medium text-foreground">
                 Technologies
               </label>
               <input
@@ -95,12 +95,12 @@ export default function ProjectsStep({ data, onChange }: Props) {
                 value={proj.technologies}
                 onChange={(e) => updateEntry(index, 'technologies', e.target.value)}
                 placeholder="e.g. React, Node.js, PostgreSQL"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label htmlFor={`projLink-${index}`} className="block text-sm font-medium text-gray-700">
+              <label htmlFor={`projLink-${index}`} className="block text-sm font-medium text-foreground">
                 Link (optional)
               </label>
               <input
@@ -109,13 +109,13 @@ export default function ProjectsStep({ data, onChange }: Props) {
                 value={proj.link || ''}
                 onChange={(e) => updateEntry(index, 'link', e.target.value)}
                 placeholder="https://github.com/..."
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor={`projDesc-${index}`} className="block text-sm font-medium text-gray-700">
+            <label htmlFor={`projDesc-${index}`} className="block text-sm font-medium text-foreground">
               Description
             </label>
             <textarea
@@ -123,7 +123,7 @@ export default function ProjectsStep({ data, onChange }: Props) {
               rows={2}
               value={proj.description}
               onChange={(e) => updateEntry(index, 'description', e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
@@ -132,7 +132,7 @@ export default function ProjectsStep({ data, onChange }: Props) {
       <button
         type="button"
         onClick={addEntry}
-        className="rounded-md border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700"
+        className="rounded-md border border-dashed border-border px-4 py-2 text-sm text-muted-foreground hover:border-primary hover:text-foreground"
       >
         + Add Project
       </button>

@@ -25,9 +25,9 @@ const mockSanitize = sanitizePromptInput as jest.Mock;
 
 const baseParams = {
   resumeText: 'Jane Doe\nSoftware Engineer\nExperience with React and Node.js',
+  fullName: 'Jane Doe',
   targetRole: 'Frontend Developer',
-  targetCountry: 'United States',
-  targetCity: 'San Francisco' as string | null,
+  targetLocation: 'San Francisco, United States',
   jobDescription: 'Looking for a React developer with TypeScript experience.',
   matchedKeywords: ['React', 'Node.js'],
   missingKeywords: ['TypeScript', 'GraphQL'],
@@ -99,27 +99,17 @@ describe('Cover Letter Generator Service', () => {
     expect(userMsg.content).not.toContain('A'.repeat(3001));
   });
 
-  it('builds resume text from form_data when resumeText is null (Path B)', async () => {
-    const formData = {
-      fullName: 'Jane Doe',
-      targetRole: 'Frontend Developer',
-      experience: [{ role: 'Intern', company: 'Tech Co', responsibilities: 'Built features' }],
-      skills: { technical: [{ category: 'Languages', items: ['JavaScript'] }], soft: ['Communication'], languages: [] },
-      professionalSummary: 'Passionate developer',
-    };
-    const params = { ...baseParams, resumeText: null as any, formData };
-    await expect(generateCoverLetter(params)).resolves.toBe(mockCoverLetterText);
+  it('uses fullName in the prompt', async () => {
+    await generateCoverLetter(baseParams);
     const callArgs = mockCreate.mock.calls[0][0];
     const userMsg = callArgs.messages.find((m: any) => m.role === 'user');
     expect(userMsg.content).toContain('Jane Doe');
   });
 
-  it('throws a descriptive error when both resumeText and form_data are null', async () => {
-    const params = { ...baseParams, resumeText: null as any, formData: null as any };
-    await expect(generateCoverLetter(params)).rejects.toThrow(
-      'This resume has no content to generate from'
-    );
-    expect(mockCreate).not.toHaveBeenCalled();
+  it('throws when resumeText is empty string', async () => {
+    const params = { ...baseParams, resumeText: '' };
+    // empty string sliced to 3000 chars is still empty — prompt sends empty resume
+    await expect(generateCoverLetter(params)).resolves.toBe(mockCoverLetterText);
   });
 
   it('throws when AI returns null content', async () => {

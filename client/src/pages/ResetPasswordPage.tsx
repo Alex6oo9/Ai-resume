@@ -15,8 +15,8 @@ export default function ResetPasswordPage() {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">Invalid Link</h2>
-          <p className="mb-4 text-gray-600">This password reset link is invalid or missing a token.</p>
+          <h2 className="mb-2 text-2xl font-bold text-foreground">Invalid Link</h2>
+          <p className="mb-4 text-muted-foreground">This password reset link is invalid or missing a token.</p>
           <Link to="/forgot-password" className="text-indigo-600 hover:text-indigo-500">
             Request a new reset link
           </Link>
@@ -59,8 +59,8 @@ export default function ResetPasswordPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">Password Reset</h2>
-          <p className="mb-6 text-gray-600">Your password has been reset successfully.</p>
+          <h2 className="mb-2 text-2xl font-bold text-foreground">Password Reset</h2>
+          <p className="mb-6 text-muted-foreground">Your password has been reset successfully.</p>
           <Link
             to="/login?reset=true"
             className="inline-block rounded-md bg-indigo-600 px-6 py-2 text-white hover:bg-indigo-700"
@@ -75,19 +75,19 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-900">
+        <h2 className="mb-6 text-center text-2xl font-bold text-foreground">
           Set new password
         </h2>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground">
               New Password
             </label>
             <input
@@ -97,12 +97,12 @@ export default function ResetPasswordPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
               Confirm New Password
             </label>
             <input
@@ -111,7 +111,7 @@ export default function ResetPasswordPage() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border border-border bg-muted/50 px-3 py-2 text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -124,7 +124,7 @@ export default function ResetPasswordPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
             Back to Sign In
           </Link>

@@ -25,6 +25,14 @@ import { up as addJobDescription } from './018_add_job_description';
 import { up as addAnalysisHistory } from './019_add_analysis_history';
 import { up as emailVerification } from './020_email_verification';
 import { up as passwordReset } from './021_password_reset';
+import { up as createCoverLetters } from './022_create_cover_letters';
+import { up as removeDeletedTemplates } from './023_remove_deleted_templates';
+import { up as removeWarmCreativeSleekDirector } from './024_remove_warm_creative_sleek_director';
+import { up as addAtsTemplates } from './025_add_ats_templates';
+import { up as addModernTemplate } from './026_add_modern_template';
+import { up as alterCoverLettersMultiple } from './027_alter_cover_letters_multiple';
+import { up as allowNullResumeIdCoverLetters } from './028_allow_null_resume_id_cover_letters';
+import { up as updateTemplateThumbnails } from './029_update_template_thumbnails';
 
 const migrations = [
   { name: '001_create_users', up: createUsers },
@@ -48,6 +56,14 @@ const migrations = [
   { name: '019_add_analysis_history', up: addAnalysisHistory },
   { name: '020_email_verification', up: emailVerification },
   { name: '021_password_reset', up: passwordReset },
+  { name: '022_create_cover_letters', up: createCoverLetters },
+  { name: '023_remove_deleted_templates', up: removeDeletedTemplates },
+  { name: '024_remove_warm_creative_sleek_director', up: removeWarmCreativeSleekDirector },
+  { name: '025_add_ats_templates', up: addAtsTemplates },
+  { name: '026_add_modern_template', up: addModernTemplate },
+  { name: '027_alter_cover_letters_multiple', up: alterCoverLettersMultiple },
+  { name: '028_allow_null_resume_id_cover_letters', up: allowNullResumeIdCoverLetters },
+  { name: '029_update_template_thumbnails', up: updateTemplateThumbnails },
 ];
 
 async function runMigrations(): Promise<void> {

@@ -16,14 +16,14 @@ export default function TemplateCard({ template, isSelected, onSelect }: Props) 
   return (
     <div
       onClick={handleClick}
-      className={`relative rounded-xl border-2 transition-all
+      className={`relative rounded-xl border-2 bg-card transition-all
         ${isSelected
-          ? 'border-blue-500 shadow-lg ring-2 ring-blue-200'
-          : 'border-gray-200 hover:border-blue-300 hover:shadow-md'}
-        ${template.isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+          ? 'border-blue-500 shadow-lg ring-2 ring-blue-500/30'
+          : 'border-border hover:border-blue-400 hover:shadow-md'}
+        ${template.isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer group'}`}
     >
       {/* Thumbnail area */}
-      <div className="aspect-[8.5/11] bg-gray-50 rounded-t-xl flex items-center justify-center overflow-hidden">
+      <div className="aspect-[8.5/11] bg-muted rounded-t-xl flex items-center justify-center overflow-hidden relative">
         {template.thumbnailUrl ? (
           <img
             src={template.thumbnailUrl}
@@ -38,6 +38,13 @@ export default function TemplateCard({ template, isSelected, onSelect }: Props) 
         <div style={template.thumbnailUrl ? { display: 'none' } : undefined} className="w-full h-full">
           <TemplatePlaceholder name={template.name} />
         </div>
+        {!template.isLocked && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl">
+            <span className="text-white text-xs font-semibold bg-blue-500 px-3 py-1.5 rounded-full">
+              Use Template
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Lock badge */}
@@ -63,15 +70,15 @@ export default function TemplateCard({ template, isSelected, onSelect }: Props) 
       )}
 
       {/* Info */}
-      <div className="p-3 border-t border-gray-100">
-        <h3 className="font-semibold text-gray-900 text-sm truncate">
+      <div className="p-3 border-t border-border">
+        <h3 className="font-semibold text-foreground text-sm truncate">
           {template.displayName}
         </h3>
-        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
           {template.description}
         </p>
         {template.requiredTier !== 'free' && (
-          <span className="mt-1.5 inline-block text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full capitalize">
+          <span className="mt-1.5 inline-block text-xs font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400 px-2 py-0.5 rounded-full capitalize">
             {template.requiredTier} plan
           </span>
         )}
@@ -83,11 +90,13 @@ export default function TemplateCard({ template, isSelected, onSelect }: Props) 
 /** Simple visual placeholder when no thumbnail is available */
 function TemplatePlaceholder({ name }: { name: string }) {
   const colors: Record<string, { bg: string; accent: string }> = {
-    modern_minimal: { bg: 'bg-white', accent: 'bg-blue-500' },
-    ats_friendly: { bg: 'bg-white', accent: 'bg-gray-800' },
-    creative_bold: { bg: 'bg-violet-50', accent: 'bg-violet-600' },
-    professional_classic: { bg: 'bg-slate-50', accent: 'bg-slate-700' },
-    tech_focused: { bg: 'bg-slate-900', accent: 'bg-sky-400' },
+    modern:                  { bg: 'bg-white', accent: 'bg-blue-500' },
+    modern_yellow_split:     { bg: 'bg-gray-900', accent: 'bg-yellow-400' },
+    dark_ribbon_modern:      { bg: 'bg-gray-900', accent: 'bg-white' },
+    modern_minimalist_block: { bg: 'bg-gray-800', accent: 'bg-gray-300' },
+    editorial_earth_tone:    { bg: 'bg-amber-50', accent: 'bg-amber-800' },
+    ats_clean:               { bg: 'bg-white', accent: 'bg-gray-800' },
+    ats_lined:               { bg: 'bg-white', accent: 'bg-blue-800' },
   };
   const c = colors[name] || { bg: 'bg-white', accent: 'bg-blue-500' };
 

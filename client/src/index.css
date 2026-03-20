@@ -1,3 +1,108 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  /* Backgrounds */
+  .bg-background { background-color: hsl(var(--background)); }
+  .bg-card        { background-color: hsl(var(--card)); }
+  .bg-muted       { background-color: hsl(var(--muted)); }
+  .bg-accent      { background-color: hsl(var(--accent)); }
+  .bg-primary     { background-color: hsl(var(--primary)); }
+
+  /* Opacity variants used in codebase */
+  .bg-muted\/50   { background-color: hsl(var(--muted) / 0.5); }
+  .bg-primary\/5  { background-color: hsl(var(--primary) / 0.05); }
+
+  /* Text */
+  .text-foreground         { color: hsl(var(--foreground)); }
+  .text-muted-foreground   { color: hsl(var(--muted-foreground)); }
+  .text-primary            { color: hsl(var(--primary)); }
+  .text-primary-foreground { color: hsl(var(--primary-foreground)); }
+  .text-accent-foreground  { color: hsl(var(--accent-foreground)); }
+
+  /* Borders */
+  .border-border       { border-color: hsl(var(--border)); }
+  .border-primary\/30  { border-color: hsl(var(--primary) / 0.3); }
+  .border-input        { border-color: hsl(var(--input)); }
+  .border-destructive  { border-color: hsl(var(--destructive)); }
+
+  /* New token colors */
+  .bg-secondary              { background-color: hsl(var(--secondary)); }
+  .text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+  .text-destructive          { color: hsl(var(--destructive)); }
+  .bg-destructive\/10        { background-color: hsl(var(--destructive) / 0.1); }
+  .bg-destructive\/20        { background-color: hsl(var(--destructive) / 0.2); }
+
+  /* Hover variants */
+  .hover\:bg-accent:hover          { background-color: hsl(var(--accent)); }
+  .hover\:text-foreground:hover    { color: hsl(var(--foreground)); }
+  .hover\:text-primary:hover       { color: hsl(var(--primary)); }
+  .hover\:text-destructive:hover   { color: hsl(var(--destructive)); }
+  .hover\:bg-destructive\/10:hover { background-color: hsl(var(--destructive) / 0.1); }
+  .hover\:bg-destructive\/20:hover { background-color: hsl(var(--destructive) / 0.2); }
+  .hover\:border-border:hover      { border-color: hsl(var(--border)); }
+  .hover\:border-primary:hover     { border-color: hsl(var(--primary)); }
+  .hover\:border-primary\/50:hover { border-color: hsl(var(--primary) / 0.5); }
+
+  /* Focus variants */
+  .focus\:border-primary:focus             { border-color: hsl(var(--primary)); }
+  .focus\:ring-primary:focus               { --tw-ring-color: hsl(var(--primary)); }
+  .focus-visible\:border-primary:focus-visible { border-color: hsl(var(--primary)); }
+  .focus-visible\:ring-primary\/30:focus-visible { --tw-ring-color: hsl(var(--primary) / 0.3); }
+}
+
+:root {
+  --background:         0 0% 98%;
+  --foreground:         222 47% 11%;
+  --card:               0 0% 100%;
+  --card-foreground:    222 47% 11%;
+  --primary:            221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --muted:              210 40% 96%;
+  --muted-foreground:   215 16% 47%;
+  --border:             214 32% 91%;
+  --accent:             210 40% 94%;
+  --accent-foreground:  222 47% 11%;
+  --input:              214 32% 91%;
+  --secondary:          210 40% 94%;
+  --secondary-foreground: 222 47% 11%;
+  --destructive:        0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+}
+
+.dark {
+  --background:         222 20% 12%;
+  --foreground:         210 25% 92%;
+  --card:               222 18% 16%;
+  --card-foreground:    210 25% 92%;
+  --primary:            221 83% 60%;
+  --primary-foreground: 0 0% 100%;
+  --muted:              222 15% 20%;
+  --muted-foreground:   215 15% 58%;
+  --border:             222 15% 24%;
+  --accent:             222 15% 22%;
+  --accent-foreground:  210 25% 92%;
+  --donut-track:        hsl(222 15% 20%);
+  --input:              222 15% 24%;
+  --secondary:          222 15% 20%;
+  --secondary-foreground: 210 25% 92%;
+  --destructive:        0 72% 60%;
+  --destructive-foreground: 0 0% 100%;
+}
+
+.pattern-dots {
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.custom-scrollbar::-webkit-scrollbar        { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track  { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb  { background: hsl(var(--border)); border-radius: 2px; }

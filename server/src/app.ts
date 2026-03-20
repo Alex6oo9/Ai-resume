@@ -15,6 +15,7 @@ import analysisRoutes from './routes/analysis';
 import exportRoutes from './routes/export';
 import aiRoutes from './routes/ai';
 import templateRoutes from './routes/templates';
+import coverLetterRoutes from './routes/coverLetter';
 
 const app = express();
 
@@ -105,10 +106,20 @@ app.use('/api/analysis', analysisRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/cover-letter', coverLetterRoutes);
 
 // Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  const checks: Record<string, unknown> = { api: 'ok' };
+  try {
+    const t = Date.now();
+    await pool.query('SELECT 1');
+    checks.db = { status: 'ok', latencyMs: Date.now() - t };
+  } catch {
+    checks.db = { status: 'degraded' };
+  }
+  const status = (checks.db as { status: string }).status === 'ok' ? 'healthy' : 'degraded';
+  res.set('Cache-Control', 'no-cache').json({ status, timestamp: new Date().toISOString(), checks });
 });
 
 // Error handler (must be last)

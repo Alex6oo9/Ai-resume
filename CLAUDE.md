@@ -2,7 +2,7 @@
 
 ## Overview
 
-AI-powered web app that helps fresh graduates build ATS-optimized resumes or improve existing ones. Two paths: upload a PDF for AI analysis, or build from scratch via a multi-step form. Provides match percentage, strengths/weaknesses, and improvement suggestions using GPT-4o-mini.
+AI-powered web app that helps fresh graduates build ATS-optimized resumes or improve existing ones. Two paths: upload a PDF for AI analysis, or build from scratch via a multi-step form. Provides match percentage, strengths/weaknesses, and improvement suggestions using GPT-4o-mini.Use email=minthwinkhant93@gmail.com and pw =minthwinkhant93@
 
 See [PRD.md](./PRD.md) for full product requirements and specifications.
 Whenever significant changes are made to the project, update the CLAUDE.md , [client/CLIENT.md](./client/CLIENT.md) and [SERVER.md](./server/SERVER.md) file to reflect the changes.
@@ -69,6 +69,7 @@ When working on frontend/backend integration, API contracts, or data structures:
 │       │   ├── resume-builder/  # Path B: multi-step form + StepIndicator
 │       │   ├── live-preview/    # ResumePreview, TemplateRenderer (shim), TemplateSelector, TemplatePreviewModal, templateTypes.ts
 │       │   └── templates/       # TemplateSwitcher, TemplateCard, ResumeTemplateSwitcher, 7 template components, types.ts, helpers/
+│       ├── contexts/        # AuthContext, ThemeContext, ToastContext
 │       ├── pages/          # HomePage, Login, Register, Dashboard, ResumeUploadPage, ResumeBuilderPage, VerifyEmailPage, ForgotPasswordPage, ResetPasswordPage
 │       ├── hooks/          # useAuth, useTemplates, useTemplateSwitch
 │       ├── utils/          # api.ts (axios instance + helpers)
@@ -84,6 +85,7 @@ When working on frontend/backend integration, API contracts, or data structures:
 - **TypeScript strict mode** in both server and client
 - **Express pattern**: controllers use `(req, res, next) => { try { ... } catch(err) { next(err) } }`
 - **Auth access**: user ID via `(req.user as any).id` after `isAuthenticated` middleware
+- **Auth state (frontend)**: accessed via `useAuthContext()` from `AuthContext` — never passed as props to page components
 - **Frontend state**: React hooks (useState, custom hooks), no external state library
 - **Styling**: TailwindCSS utility classes, no CSS files
 - **Imports**: named exports for services/middleware, default exports for React components
@@ -173,3 +175,4 @@ See `.env.example` — required:
 - [x] **Phase 7**: Deployment — template-aware PDF export ✓, production build ✓, SPA static serving ✓
 - [x] **Phase 5 (Analysis UX)**: Original PDF viewer (Path A, `GET /resume/:id/file`), ATS score SVG donut chart (pure SVG, no packages), analysis history per resume (`analysis_history` table, migration 019, `GET /analysis/history/:resumeId`)
 - [x] **Email Verification & Password Reset**: Registration requires email verification (no auto-login), login checks `is_email_verified`, forgot/reset password flow, Resend email service (dev console fallback), `name` column on users, rate-limited forgot-password (5/hr), migrations 020-021, new pages: VerifyEmailPage, ForgotPasswordPage, ResetPasswordPage
+- [x] **Data Router Migration & `useBlocker`**: Migrated from `BrowserRouter` to `createBrowserRouter`; added `AuthContext`/`AuthProvider` (wraps `useAuth()`); page components read auth from context; `ProtectedLayout` layout route replaces `<ProtectedRoute>` wrapper; `ConfirmLeaveModal` + `useBlocker` in `ResumeBuilderPage` prevents accidental navigation away from unsaved form
