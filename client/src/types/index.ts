@@ -142,6 +142,8 @@ export interface ResumeSummary {
   match_percentage: number | null;
   ats_score: number | null;
   created_at: string;
+  file_path: string | null;
+  template_id: string | null;
 }
 
 export interface AuthState {
@@ -170,6 +172,7 @@ export interface CoverLetter {
   company_name: string | null;
   hiring_manager_name: string | null;
   job_title: string | null;
+  job_description: string | null;
   custom_instructions: string | null;
   created_at: string;
   updated_at: string;

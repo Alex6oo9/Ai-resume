@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import https from 'https';
 import pool from '../config/db';
 import openai from '../config/openai';
 import { generateCoverLetter as generateCoverLetterService } from '../services/ai/coverLetterGenerator';
 import { extractKeywords as extractKeywordsService } from '../services/ai/keywordExtractor';
+import { extractResumeStructure } from '../services/ai/resumeStructureExtractor';
+import { extractTextFromPDF } from '../services/parser/pdfParser';
 import { sanitizePromptInput } from '../utils/sanitizePromptInput';
 
 function buildResumeTextFromFormData(formData: any): string {
@@ -74,7 +77,26 @@ export const extractKeywords = async (
       }
 
       const resume = resumeResult.rows[0];
-      const text = getResumeText(resume);
+      let text = getResumeText(resume);
+
+      // Lazy text extraction: resume uploaded via cover letter (no parsed_text yet)
+      // Fetch PDF from Cloudinary and extract text on demand, then cache to DB
+      if (!text && resume.file_path) {
+        try {
+          const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+            https.get(resume.file_path, (res) => {
+              const chunks: Buffer[] = [];
+              res.on('data', (chunk) => chunks.push(chunk));
+              res.on('end', () => resolve(Buffer.concat(chunks)));
+              res.on('error', reject);
+            }).on('error', reject);
+          });
+          text = await extractTextFromPDF(pdfBuffer);
+          if (text) {
+            await pool.query('UPDATE resumes SET parsed_text = $1 WHERE id = $2', [text, resume.id]);
+          }
+        } catch { /* silently continue — generate with job description only */ }
+      }
 
       if (!text) {
         res.status(400).json({
@@ -118,10 +140,34 @@ export const generateCoverLetter = async (
     } = req.body;
 
     let resumeText: string;
+    let effectiveResumeId: string | null = resumeId || null;
+    let resumeSaved = false;
 
     if (rawResumeText) {
-      // Direct text provided — skip DB lookup
+      // Direct text provided — auto-save to resumes table
       resumeText = sanitizePromptInput(rawResumeText).slice(0, 3000);
+
+      const savedResume = await pool.query(
+        `INSERT INTO resumes (user_id, parsed_text, target_role)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [userId, resumeText, targetRole || null]
+      );
+      effectiveResumeId = savedResume.rows[0].id;
+      resumeSaved = true;
+
+      // Best-effort: extract structured data and store in resume_data
+      try {
+        const extracted = await extractResumeStructure({ resumeText, targetRole });
+        if (extracted && Object.keys(extracted).length > 0) {
+          await pool.query(
+            `INSERT INTO resume_data (resume_id, form_data) VALUES ($1, $2)`,
+            [effectiveResumeId, JSON.stringify(extracted)]
+          );
+        }
+      } catch {
+        // non-fatal
+      }
     } else {
       const resumeResult = await pool.query(
         `SELECT r.*, rd.form_data
@@ -165,11 +211,11 @@ export const generateCoverLetter = async (
     });
 
     const insertResult = await pool.query(
-      `INSERT INTO cover_letters (resume_id, user_id, content, generated_content, tone, word_count_target, company_name, hiring_manager_name, job_title, custom_instructions)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO cover_letters (resume_id, user_id, content, generated_content, tone, word_count_target, company_name, hiring_manager_name, job_title, job_description, custom_instructions)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
-        resumeId || null,
+        effectiveResumeId,
         userId,
         generatedText,
         generatedText,
@@ -178,11 +224,12 @@ export const generateCoverLetter = async (
         companyName,
         hiringManagerName || null,
         jobTitle || null,
+        jobDescription || null,
         customInstructions || null,
       ]
     );
 
-    res.status(201).json({ coverLetter: insertResult.rows[0] });
+    res.status(201).json({ coverLetter: insertResult.rows[0], resumeSaved });
   } catch (err) {
     next(err);
   }
@@ -398,10 +445,10 @@ export const regenerateCoverLetter = async (
 
     const updateResult = await pool.query(
       `UPDATE cover_letters
-       SET content = $1, generated_content = $1, updated_at = NOW()
-       WHERE id = $2
+       SET content = $1, generated_content = $1, job_description = $2, updated_at = NOW()
+       WHERE id = $3
        RETURNING *`,
-      [generatedText, id]
+      [generatedText, jobDescription || null, id]
     );
 
     res.json({ coverLetter: updateResult.rows[0] });

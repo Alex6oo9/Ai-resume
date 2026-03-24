@@ -8,6 +8,7 @@ import {
 import { validate } from '../../middleware/validate';
 import {
   uploadResume,
+  uploadResumeSimple,
   buildResume,
   getResume,
   getResumeFile,
@@ -33,6 +34,7 @@ router.post(
   validate,
   uploadResume
 );
+router.post('/upload-simple', uploadMiddleware().single('file'), uploadResumeSimple);
 router.post('/build', buildResumeValidators, validate, buildResume);
 router.post('/draft/save', saveDraft);
 router.get('/draft/:id', loadDraft);

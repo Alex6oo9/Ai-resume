@@ -8,8 +8,8 @@ const standardFontDataUrl =
     'standard_fonts'
   ) + '/';
 
-export async function extractTextFromPDF(filePath: string): Promise<string> {
-  const buffer = fs.readFileSync(filePath);
+export async function extractTextFromPDF(source: Buffer | string): Promise<string> {
+  const buffer = typeof source === 'string' ? fs.readFileSync(source) : source;
   const parser = new PDFParse({
     data: new Uint8Array(buffer),
     standardFontDataUrl,

@@ -1,19 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
-import fs from 'fs';
-import path from 'path';
+import crypto from 'crypto';
+import https from 'https';
 import pool from '../config/db';
+import cloudinary from '../config/cloudinary';
 import { extractTextFromPDF } from '../services/parser/pdfParser';
 import { analyzeResume } from '../services/ai/resumeAnalyzer';
 import { generateResume } from '../services/ai/resumeGenerator';
 import { extractResumeStructure } from '../services/ai/resumeStructureExtractor';
 import { sanitizePromptInput } from '../utils/sanitizePromptInput';
 
+/** Upload a PDF buffer to Cloudinary, returns secure_url */
+async function uploadPdfToCloudinary(buffer: Buffer, filename: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: 'resumes', resource_type: 'raw', public_id: filename },
+      (error, result) => {
+        if (error || !result) return reject(error ?? new Error('Cloudinary upload failed'));
+        resolve(result.secure_url);
+      }
+    ).end(buffer);
+  });
+}
+
+/** Extract Cloudinary public_id from a secure_url for deletion */
+function extractPublicId(url: string): string {
+  const match = url.match(/\/raw\/upload\/(?:v\d+\/)?(.+)/);
+  return match ? match[1] : '';
+}
+
 export const uploadResume = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const filePath = req.file?.path;
   try {
     if (!req.file) {
       res.status(400).json({ error: 'PDF file is required' });
@@ -27,8 +46,13 @@ export const uploadResume = async (
       ? sanitizePromptInput(jobDescription)
       : null;
 
-    // Extract text from PDF
-    const parsedText = await extractTextFromPDF(filePath!);
+    const uniqueName = `${crypto.randomUUID()}-${Date.now()}`;
+
+    // Upload to Cloudinary + extract text in parallel
+    const [cloudinaryUrl, parsedText] = await Promise.all([
+      uploadPdfToCloudinary(req.file.buffer, uniqueName),
+      extractTextFromPDF(req.file.buffer),
+    ]);
 
     // Analyze with AI
     const { matchPercentage, aiAnalysis } = await analyzeResume({
@@ -57,7 +81,7 @@ export const uploadResume = async (
        RETURNING *`,
       [
         userId,
-        filePath,
+        cloudinaryUrl,
         parsedText,
         targetRole,
         targetCountry,
@@ -97,10 +121,6 @@ export const uploadResume = async (
 
     res.status(201).json({ resume });
   } catch (err) {
-    // Clean up uploaded file on error
-    if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
     next(err);
   }
 };
@@ -268,7 +288,7 @@ export const listResumes = async (
     const userId = (req.user as any).id;
 
     const result = await pool.query(
-      'SELECT id, target_role, target_country, target_city, match_percentage, ats_score, created_at FROM resumes WHERE user_id = $1 ORDER BY created_at DESC',
+      'SELECT id, target_role, target_country, target_city, match_percentage, ats_score, created_at, file_path, template_id FROM resumes WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
 
@@ -304,9 +324,12 @@ export const deleteResume = async (
     await pool.query('DELETE FROM resume_data WHERE resume_id = $1', [id]);
     await pool.query('DELETE FROM resumes WHERE id = $1', [id]);
 
-    // Clean up uploaded file from disk
-    if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Delete from Cloudinary (non-fatal if it fails)
+    if (filePath) {
+      try {
+        const publicId = extractPublicId(filePath);
+        if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+      } catch { /* ignore — DB record already deleted */ }
     }
 
     res.json({ message: 'Resume deleted' });
@@ -474,15 +497,48 @@ export const getResumeFile = async (
     }
 
     const filePath = result.rows[0].file_path;
-    const resolvedPath = path.resolve(filePath);
 
-    if (!fs.existsSync(resolvedPath)) {
-      res.status(404).json({ error: 'File not found on disk' });
+    // Proxy through server so browser renders PDF inline (Cloudinary sends attachment header)
+    https.get(filePath, (pdfStream) => {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="resume.pdf"');
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      pdfStream.pipe(res);
+    }).on('error', (err) => next(err));
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Lightweight upload for cover letter flow — saves PDF to Cloudinary only (no text extraction).
+ * Text is extracted lazily on the server when cover letter generation is triggered.
+ * Resume appears in Dashboard "Uploaded" tab.
+ * POST /api/resume/upload-simple
+ */
+export const uploadResumeSimple = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'PDF file is required' });
       return;
     }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.sendFile(resolvedPath);
+    const userId = (req.user as any).id;
+    const uniqueName = `${crypto.randomUUID()}-${Date.now()}`;
+
+    // Upload to Cloudinary only — text extraction happens lazily at generation time
+    const cloudinaryUrl = await uploadPdfToCloudinary(req.file.buffer, uniqueName);
+
+    const result = await pool.query(
+      `INSERT INTO resumes (user_id, file_path) VALUES ($1, $2) RETURNING *`,
+      [userId, cloudinaryUrl]
+    );
+
+    res.status(201).json({ resume: result.rows[0] });
   } catch (err) {
     next(err);
   }

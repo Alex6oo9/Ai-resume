@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import type { CoverLetter, GenerateCoverLetterPayload, Keywords, ProgressStep } from '../types';
 import {
   listCoverLettersByResume as listCoverLettersByResumeApi,
+  getCoverLetter as getCoverLetterApi,
   generateCoverLetter as generateCoverLetterApi,
   regenerateCoverLetter as regenerateCoverLetterApi,
   saveCoverLetter as saveCoverLetterApi,
   deleteCoverLetter as deleteCoverLetterApi,
   extractKeywords as extractKeywordsApi,
-  parseResumeText as parseResumeTextApi,
+  uploadResumeSimple as uploadResumeSimpleApi,
   improveCoverLetter as improveCoverLetterApi,
 } from '../utils/api';
 
@@ -32,12 +33,15 @@ export interface UseCoverLettersReturn {
   resumeInputMode: ResumeInputMode;
   uploadedResumeText: string | null;
   uploadedFileName: string | null;
+  uploadedResumeId: string | null;
+  uploadedResumeFilePath: string | null;
   isParsing: boolean;
   parseError: string | null;
   // Methods
   startNew: () => void;
   selectLetter: (letter: CoverLetter) => void;
-  create: (payload: GenerateCoverLetterPayload) => Promise<void>;
+  loadLetter: (letterId: string) => Promise<void>;
+  create: (payload: GenerateCoverLetterPayload) => Promise<{ resumeSaved?: boolean }>;
   regenerate: (letterId: string, payload: GenerateCoverLetterPayload) => Promise<void>;
   save: (content: string) => Promise<void>;
   remove: (letterId: string) => Promise<void>;
@@ -62,6 +66,8 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
   const [resumeInputMode, setResumeInputModeState] = useState<ResumeInputMode>('existing');
   const [uploadedResumeText, setUploadedResumeText] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedResumeId, setUploadedResumeId] = useState<string | null>(null);
+  const [uploadedResumeFilePath, setUploadedResumeFilePath] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
 
@@ -128,6 +134,8 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     if (mode === 'existing') {
       setUploadedResumeText(null);
       setUploadedFileName(null);
+      setUploadedResumeId(null);
+      setUploadedResumeFilePath(null);
       setParseError(null);
     } else {
       // switching to upload — clear existing-mode data if needed
@@ -140,33 +148,61 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     setParseError(null);
     setUploadedResumeText(null);
     setUploadedFileName(null);
+    setUploadedResumeId(null);
+    setUploadedResumeFilePath(null);
     try {
-      const result = await parseResumeTextApi(file);
-      setUploadedResumeText(result.parsedText);
+      // Save PDF to Cloudinary + DB so it appears in Dashboard "Uploaded" tab
+      const { resume } = await uploadResumeSimpleApi(file);
+      setUploadedResumeId(resume.id);
+      setUploadedResumeFilePath(resume.file_path);
+      setUploadedResumeText(resume.parsed_text ?? null);
       setUploadedFileName(file.name);
     } catch (err: any) {
       setParseError(
-        err?.response?.data?.message || err?.message || 'Failed to parse PDF'
+        err?.response?.data?.message || err?.message || 'Failed to upload PDF'
       );
     } finally {
       setIsParsing(false);
     }
   };
 
-  const create = async (payload: GenerateCoverLetterPayload): Promise<void> => {
+  const loadLetter = async (letterId: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      const response = await getCoverLetterApi(letterId);
+      const letter = response.coverLetter;
+      setCoverLetters([letter]);
+      setActiveLetter(letter);
+      setMode('edit');
+      setProgressStep('idle');
+      setError(null);
+      if (letter.resume_id) {
+        listCoverLettersByResumeApi(letter.resume_id)
+          .then((r) => setCoverLetters(r.coverLetters))
+          .catch(() => {});
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to load cover letter');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const create = async (payload: GenerateCoverLetterPayload): Promise<{ resumeSaved?: boolean }> => {
     setError(null);
 
     let matchedKeywords: string[];
     let missingKeywords: string[];
 
-    const isUploadMode = resumeInputMode === 'upload' && uploadedResumeText;
+    // If user uploaded a PDF in this session, treat it as an existing resume via its saved ID
+    const isUploadMode = resumeInputMode === 'upload' && uploadedResumeId;
 
     try {
       setProgressStep('extracting');
 
-      // Extract keywords using either resumeText or resumeId
+      // Extract keywords using the saved resumeId (upload mode) or provided resumeId
       const kwPayload = isUploadMode
-        ? { resumeText: uploadedResumeText! }
+        ? { resumeId: uploadedResumeId! }
         : { resumeId: payload.resumeId! };
 
       const res = await extractKeywordsApi(kwPayload, payload.jobDescription);
@@ -185,8 +221,8 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
       };
 
       if (isUploadMode) {
-        genPayload.resumeText = uploadedResumeText!;
-        delete genPayload.resumeId;
+        genPayload.resumeId = uploadedResumeId!;
+        delete genPayload.resumeText;
       }
 
       const genRes = await generateCoverLetterApi(genPayload);
@@ -196,6 +232,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
       setActiveLetter(newLetter);
       setMode('edit');
       setProgressStep('done');
+      return { resumeSaved: genRes.resumeSaved === true };
     } catch (err: any) {
       setProgressStep('error');
       setError(
@@ -204,6 +241,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
           err?.message ||
           'Failed to generate cover letter'
       );
+      return {};
     }
   };
 
@@ -313,10 +351,13 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     resumeInputMode,
     uploadedResumeText,
     uploadedFileName,
+    uploadedResumeId,
+    uploadedResumeFilePath,
     isParsing,
     parseError,
     startNew,
     selectLetter,
+    loadLetter,
     create,
     regenerate,
     save,

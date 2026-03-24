@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { AuthState, User } from '../types';
 
@@ -8,25 +8,16 @@ export function useAuth() {
     loading: true,
   });
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const res = await api.get<{ user: User }>('/auth/me');
-      setAuthState({ user: res.data.user, loading: false });
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { status?: number } };
-      if (!axiosErr.response) {
-        // Network error — server may be starting up; don't redirect, just mark not loading
-        setAuthState({ user: null, loading: false });
-      } else {
-        // 401 or other HTTP error — definitely not authenticated
-        setAuthState({ user: null, loading: false });
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    const controller = new AbortController();
+    api.get<{ user: User }>('/auth/me', { signal: controller.signal })
+      .then(res => setAuthState({ user: res.data.user, loading: false }))
+      .catch((err: unknown) => {
+        if ((err as { code?: string }).code === 'ERR_CANCELED') return; // aborted — ignore
+        setAuthState({ user: null, loading: false });
+      });
+    return () => controller.abort();
+  }, []);
 
   const login = async (email: string, password: string) => {
     const res = await api.post<{ user: User }>('/auth/login', {

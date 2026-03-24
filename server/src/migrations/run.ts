@@ -33,6 +33,7 @@ import { up as addModernTemplate } from './026_add_modern_template';
 import { up as alterCoverLettersMultiple } from './027_alter_cover_letters_multiple';
 import { up as allowNullResumeIdCoverLetters } from './028_allow_null_resume_id_cover_letters';
 import { up as updateTemplateThumbnails } from './029_update_template_thumbnails';
+import { up as addJobDescriptionToCoverLetters } from './030_add_job_description_to_cover_letters';
 
 const migrations = [
   { name: '001_create_users', up: createUsers },
@@ -64,6 +65,7 @@ const migrations = [
   { name: '027_alter_cover_letters_multiple', up: alterCoverLettersMultiple },
   { name: '028_allow_null_resume_id_cover_letters', up: allowNullResumeIdCoverLetters },
   { name: '029_update_template_thumbnails', up: updateTemplateThumbnails },
+  { name: '030_add_job_description_to_cover_letters', up: addJobDescriptionToCoverLetters },
 ];
 
 async function runMigrations(): Promise<void> {

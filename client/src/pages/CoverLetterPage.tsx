@@ -1,112 +1,42 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useBlocker, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { listResumes, apiClient } from '../utils/api';
+import {
+  Sparkles,
+  FileText,
+  Wand2,
+  Copy,
+  Download,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  X,
+  Plus,
+  Maximize,
+  Minimize,
+  Upload,
+  RefreshCw,
+  Edit3,
+  ChevronDown,
+  AlignLeft,
+  Palette,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { DEFAULT_TEMPLATE_ID, type CoverLetterTemplateId } from '../components/cover-letter/coverLetterTemplates';
+import ConfirmLeaveModal from '../components/shared/ConfirmLeaveModal';
+import CoverLetterTemplatePicker from '../components/cover-letter/CoverLetterTemplatePicker';
+import BoldArchitectTemplate from '../components/cover-letter/BoldArchitectTemplate';
+import { listResumes, apiClient, getResume } from '../utils/api';
 import { useCoverLetters } from '../hooks/useCoverLetters';
 import { useAuth } from '../hooks/useAuth';
+import { useToastContext } from '../contexts/ToastContext';
 import type { CoverLetter, CoverLetterTone, CoverLetterLength } from '../types';
 
-// ─── Demo Data ───────────────────────────────────────────────────────────────
-
-const DEMO_DATA = {
-  companyName: 'Stripe',
-  jobTitle: 'Software Engineer, Payments Infrastructure',
-  hiringManagerName: 'Alex Johnson',
-  tone: 'professional' as CoverLetterTone,
-  length: 'medium' as CoverLetterLength,
-  jobDescription: `About the role
-We are looking for a Software Engineer to join Stripe's Payments Infrastructure team. You will build and scale the core systems that power billions of dollars in transactions worldwide.
-
-Responsibilities
-- Design and implement reliable, high-throughput payment processing systems
-- Collaborate with cross-functional teams across product, design, and operations
-- Write clean, testable TypeScript/Go code with thorough documentation
-- Participate in on-call rotations and incident response
-- Drive technical design reviews and mentor junior engineers
-
-Qualifications
-- Bachelor's degree in Computer Science or equivalent practical experience
-- 1–3 years of software engineering experience (internships count)
-- Proficiency in at least one of: TypeScript, Go, Java, Python
-- Understanding of distributed systems, APIs, and databases
-- Strong communication skills and a bias toward action
-
-Nice to have
-- Experience with payment systems or financial technology
-- Familiarity with AWS, Kubernetes, or similar infrastructure tooling
-- Open-source contributions`,
-};
-
-// ─── SVG Icons (inline, no lucide-react dependency) ─────────────────────────
-
-const ChevronLeftIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6" />
-  </svg>
-);
-
-const ChevronDownIcon = ({ open }: { open: boolean }) => (
-  <svg
-    width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-const Settings2Icon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 7H4M20 12H4M20 17H4" /><circle cx="8" cy="7" r="2" fill="currentColor" stroke="none" /><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none" /><circle cx="8" cy="17" r="2" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const SparklesIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" /><path d="M5 18l.8 2.4L8 21l-2.2.6L5 24l-.8-2.4L2 21l2.2-.6z" /><path d="M19 2l.5 1.5L21 4l-1.5.5L19 6l-.5-1.5L17 4l1.5-.5z" />
-  </svg>
-);
-
-const FileTextIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
-  </svg>
-);
-
-const Wand2Icon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72" />
-    <path d="m14 7 3 3" /><path d="M5 6v4" /><path d="M19 14v4" /><path d="M10 2v2" /><path d="M7 8H3" /><path d="M21 16h-4" /><path d="M11 3H9" />
-  </svg>
-);
-
-const CopyIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
-);
-
-const UploadIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
-  </svg>
-);
-
-const FlaskConicalIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10 2v7.31" /><path d="M14 9.3V1.99" /><path d="M8.5 2h7" /><path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.58 16.5h12.85" />
-  </svg>
-);
-
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -122,13 +52,7 @@ function formatRelativeDate(dateStr: string): string {
 
 type StepStatus = 'pending' | 'active' | 'done';
 
-interface ProgressStepRowProps {
-  label: string;
-  status: StepStatus;
-  children?: React.ReactNode;
-}
-
-function ProgressStepRow({ label, status, children }: ProgressStepRowProps) {
+function ProgressStepRow({ label, status, children }: { label: string; status: StepStatus; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
@@ -158,86 +82,43 @@ function ProgressStepRow({ label, status, children }: ProgressStepRowProps) {
   );
 }
 
-// ─── Accordion ───────────────────────────────────────────────────────────────
+// ─── Formatting toolbar (rendered above the paper, outside EditorPanel) ────────
 
-interface AccordionProps {
-  title: string;
-  icon: React.ReactNode;
-  accentColor: string; // Tailwind classes
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}
-
-function Accordion({ title, icon, accentColor, isOpen, onToggle, children }: AccordionProps) {
+function FormatToolbar({ editor }: { editor: Editor | null }) {
+  if (!editor) return null;
+  const btn = (active: boolean) =>
+    `p-1.5 rounded text-xs transition-colors ${active
+      ? 'bg-muted text-foreground'
+      : 'text-muted-foreground hover:bg-muted/60'}`;
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`flex w-full items-center justify-between px-4 py-3 text-left transition-colors ${isOpen ? 'border-b border-gray-100 bg-gray-50/70 dark:border-gray-700 dark:bg-gray-700/30' : 'hover:bg-gray-50/50 dark:hover:bg-gray-700/20'}`}
-      >
-        <div className="flex items-center gap-2">
-          <span className={accentColor}>{icon}</span>
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{title}</span>
-        </div>
-        <ChevronDownIcon open={isOpen} />
+    <div className="flex items-center gap-1 px-4 sm:px-6 py-2 border-b border-border/50 bg-background shrink-0">
+      <button type="button" title="Bold" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={btn(editor.isActive('bold'))}>
+        <strong className="text-xs">B</strong>
       </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div className="px-5 pb-5 pt-3">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Tab bar (manual, no @radix-ui/react-tabs required) ──────────────────────
-
-interface SimpleTabsProps {
-  value: string;
-  onChange: (v: string) => void;
-  tabs: { value: string; label: string }[];
-}
-
-function SimpleTabs({ value, onChange, tabs }: SimpleTabsProps) {
-  return (
-    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-xs font-medium">
-      {tabs.map((tab) => (
-        <button
-          key={tab.value}
-          type="button"
-          onClick={() => onChange(tab.value)}
-          className={`flex-1 px-3 py-1.5 transition-colors ${
-            value === tab.value
-              ? 'bg-teal-600 text-white'
-              : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-          }`}
-        >
-          {tab.label}
-        </button>
-      ))}
+      <button type="button" title="Italic" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={btn(editor.isActive('italic'))}>
+        <em className="text-xs">I</em>
+      </button>
+      <button type="button" title="Bullet list" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} className={btn(editor.isActive('bulletList'))}>
+        <span className="text-xs">• ≡</span>
+      </button>
+      <div className="mx-1 h-4 w-px bg-border" />
+      <button type="button" title="Undo" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().undo().run(); }} className={btn(false)}>
+        <span className="text-xs">↩</span>
+      </button>
+      <button type="button" title="Redo" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().redo().run(); }} className={btn(false)}>
+        <span className="text-xs">↪</span>
+      </button>
     </div>
   );
 }
 
 // ─── TipTap editor ────────────────────────────────────────────────────────────
 
-interface EditorPanelProps {
+function EditorPanel({ content, onChange, onEditorReady }: {
   content: string;
   onChange: (html: string) => void;
-}
-
-function EditorPanel({ content, onChange }: EditorPanelProps) {
+  onEditorReady?: (editor: Editor | null) => void;
+}) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -254,12 +135,18 @@ function EditorPanel({ content, onChange }: EditorPanelProps) {
     },
     editorProps: {
       attributes: {
-        class: 'ProseMirror font-serif text-gray-800 dark:text-gray-100 leading-[1.8] text-[15px] p-10 md:p-16 min-h-[1056px] focus:outline-none',
+        class: 'ProseMirror font-serif text-gray-800 leading-[1.8] text-[15px] focus:outline-none',
       },
     },
   });
 
-  // Sync content when activeLetter changes
+  // Notify parent when editor instance is ready or destroyed
+  useEffect(() => {
+    onEditorReady?.(editor ?? null);
+    return () => { onEditorReady?.(null); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
+
   const prevContent = useRef(content);
   useEffect(() => {
     if (!editor) return;
@@ -269,38 +156,201 @@ function EditorPanel({ content, onChange }: EditorPanelProps) {
     prevContent.current = content;
   }, [content, editor]);
 
-  const btn = (active: boolean) =>
-    `p-1.5 rounded text-xs transition-colors ${active
-      ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100'
-      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`;
-
   if (!editor) return null;
+  return <EditorContent editor={editor} />;
+}
+
+// ─── Step 1: Resume Selection ─────────────────────────────────────────────────
+
+interface SelectionStepProps {
+  resumes: any[];
+  selectedResumeId: string;
+  setSelectedResumeId: (id: string) => void;
+  resumeInputMode: 'existing' | 'upload';
+  setResumeInputMode: (mode: 'existing' | 'upload') => void;
+  uploadedFileName: string | null;
+  isParsing: boolean;
+  parseError: string | null;
+  parseUploadedFile: (file: File) => Promise<void>;
+  onContinue: () => void;
+}
+
+function SelectionStep({
+  resumes,
+  selectedResumeId,
+  setSelectedResumeId,
+  resumeInputMode,
+  setResumeInputMode,
+  uploadedFileName,
+  isParsing,
+  parseError,
+  parseUploadedFile,
+  onContinue,
+}: SelectionStepProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const canContinue =
+    (resumeInputMode === 'existing' && Boolean(selectedResumeId)) ||
+    (resumeInputMode === 'upload' && Boolean(uploadedFileName));
+
+  const handleFileSelect = async (file: File | null) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf') return;
+    await parseUploadedFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
 
   return (
-    <div className="group relative">
-      {/* Floating toolbar */}
-      <div className="sticky top-0 z-10 flex items-center gap-1 rounded-t-md border border-b-0 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button type="button" title="Bold" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={btn(editor.isActive('bold'))}>
-          <strong>B</strong>
-        </button>
-        <button type="button" title="Italic" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={btn(editor.isActive('italic'))}>
-          <em>I</em>
-        </button>
-        <button type="button" title="Bullet list" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} className={btn(editor.isActive('bulletList'))}>
-          • ≡
-        </button>
-        <button type="button" title="Ordered list" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} className={btn(editor.isActive('orderedList'))}>
-          1. ≡
-        </button>
-        <div className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-600" />
-        <button type="button" title="Undo" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().undo().run(); }} className={btn(false)}>
-          ↩
-        </button>
-        <button type="button" title="Redo" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().redo().run(); }} className={btn(false)}>
-          ↪
-        </button>
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
+      {/* Top bar */}
+      <div className="shrink-0 h-[72px] border-b border-border/50 px-8 flex items-center">
+        <Link
+          to="/"
+          className="text-base font-bold tracking-tight text-foreground hover:text-teal-600 transition-colors"
+        >
+          ProResumeAI
+        </Link>
       </div>
-      <EditorContent editor={editor} />
+
+      {/* Centered card */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-500/10 mb-4">
+              <FileText className="text-teal-600" size={28} />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Create a Cover Letter</h1>
+            <p className="text-muted-foreground text-sm">Choose a resume to base your letter on</p>
+          </div>
+
+          {/* Mode toggle */}
+          <div className="flex rounded-xl border border-border overflow-hidden mb-6 text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setResumeInputMode('existing')}
+              className={`flex-1 px-4 py-2.5 transition-colors ${
+                resumeInputMode === 'existing'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-background text-muted-foreground hover:bg-muted/50'
+              }`}
+            >
+              Use Existing Resume
+            </button>
+            <button
+              type="button"
+              onClick={() => setResumeInputMode('upload')}
+              className={`flex-1 px-4 py-2.5 transition-colors ${
+                resumeInputMode === 'upload'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-background text-muted-foreground hover:bg-muted/50'
+              }`}
+            >
+              Upload PDF
+            </button>
+          </div>
+
+          {/* Existing resume select */}
+          {resumeInputMode === 'existing' && (
+            <div className="mb-6">
+              {resumes.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  No resumes found.{' '}
+                  <Link to="/build" className="text-teal-600 hover:underline">Create one</Link> first.
+                </div>
+              ) : (
+                <select
+                  value={selectedResumeId}
+                  onChange={(e) => setSelectedResumeId(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                >
+                  <option value="">Select a resume...</option>
+                  {resumes.map((r: any) => (
+                    <option key={r.id} value={r.id}>
+                      {r.target_role || 'Untitled Resume'} — {formatRelativeDate(r.created_at)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* Upload zone */}
+          {resumeInputMode === 'upload' && (
+            <div className="mb-6">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors ${
+                  isDragging
+                    ? 'border-teal-500 bg-teal-500/5'
+                    : 'border-border hover:border-teal-400 hover:bg-muted/30'
+                }`}
+              >
+                {isParsing ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="animate-spin text-teal-600" size={32} />
+                    <p className="text-sm text-muted-foreground">Parsing PDF...</p>
+                  </div>
+                ) : uploadedFileName ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <CheckCircle2 className="text-green-500" size={32} />
+                    <p className="text-sm font-medium text-foreground">{uploadedFileName}</p>
+                    <p className="text-xs text-muted-foreground">Click to replace</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <Upload className="text-muted-foreground/50" size={32} />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-foreground">Drop your PDF here</p>
+                      <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {parseError && (
+                <p className="mt-2 text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle size={12} /> {parseError}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Continue button */}
+          <button
+            type="button"
+            onClick={onContinue}
+            disabled={!canContinue}
+            className="w-full h-11 rounded-xl bg-teal-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Continue →
+          </button>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.5); }
+        `
+      }} />
     </div>
   );
 }
@@ -309,11 +359,27 @@ function EditorPanel({ content, onChange }: EditorPanelProps) {
 
 export default function CoverLetterPage() {
   const { user } = useAuth();
+  const { showToast } = useToastContext();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
+  // Step state
+  const [step, setStep] = useState<'select-resume' | 'editor'>('select-resume');
+
+  // Block navigation while in editor (unsaved cover letter)
+  const blocker = useBlocker(step === 'editor');
+
+  useEffect(() => {
+    if (step !== 'editor') return;
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [step]);
   const [resumes, setResumes] = useState<any[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState('');
-
-  const effectiveResumeId = selectedResumeId || null;
+  const effectiveResumeId = step === 'editor' ? (selectedResumeId || null) : null;
 
   const {
     coverLetters,
@@ -328,10 +394,13 @@ export default function CoverLetterPage() {
     resumeInputMode,
     uploadedResumeText,
     uploadedFileName,
+    uploadedResumeId,
+    uploadedResumeFilePath,
     isParsing,
     parseError,
     startNew,
     selectLetter,
+    loadLetter,
     create,
     regenerate,
     save,
@@ -350,39 +419,61 @@ export default function CoverLetterPage() {
   const [hiringManagerName, setHiringManagerName] = useState('');
   const [tone, setTone] = useState<CoverLetterTone>('professional');
   const [length, setLength] = useState<CoverLetterLength>('medium');
+  const [customInstructions, setCustomInstructions] = useState('');
 
-  // Improve section state
+  // UI state
+  const [isLeftJDExpanded, setIsLeftJDExpanded] = useState(false);
+  const [showRefinePanel, setShowRefinePanel] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [resumeContactInfo, setResumeContactInfo] = useState<{ email: string; phone: string; address: string }>({ email: '', phone: '', address: '' });
+  const [selectedTemplate, setSelectedTemplate] = useState<CoverLetterTemplateId>(DEFAULT_TEMPLATE_ID);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [activeEditor, setActiveEditor] = useState<Editor | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [whyThisCompany, setWhyThisCompany] = useState('');
   const [achievementToHighlight, setAchievementToHighlight] = useState('');
-  const [showImproveConfirm, setShowImproveConfirm] = useState(false);
-
-  // Accordion state
-  const [settingsOpen, setSettingsOpen] = useState(true);
-  const [refineOpen, setRefineOpen] = useState(false);
-
-  // Dialog state
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showImproveConfirm, setShowImproveConfirm] = useState(false);
 
-  // Editor state (plain text for revert + downloads)
+  // Resume preview toggle (for uploaded resumes)
+  const [showResumePreview, setShowResumePreview] = useState(false);
+
+  // Editor state
   const [editorHtml, setEditorHtml] = useState('');
   const [copiedIndicator, setCopiedIndicator] = useState(false);
 
-  // Drag-drop state
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Fetch resume list
+  // Fetch resume list on mount
   useEffect(() => {
     listResumes()
       .then((data) => setResumes(data.resumes || []))
       .catch(() => {});
   }, []);
 
-  // Sync editor content when active letter changes
+  // Fetch resume contact info when resume selection changes
+  useEffect(() => {
+    if (!selectedResumeId) { setResumeContactInfo({ email: '', phone: '', address: '' }); return; }
+    getResume(selectedResumeId)
+      .then((r) => {
+        const fd = r.form_data ?? {};
+        const addr = [fd.city, fd.country].filter(Boolean).join(', ');
+        setResumeContactInfo({ email: fd.email ?? '', phone: fd.phone ?? '', address: addr });
+      })
+      .catch(() => {});
+  }, [selectedResumeId]);
+
+  // Deep-link: ?id=<cover_letter_id> — jump straight to editor with that letter loaded
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id) return;
+    setStep('editor');
+    loadLetter(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync editor content when active letter changes or content is updated (improve/regenerate/save)
   useEffect(() => {
     setEditorHtml(activeLetter?.content ?? '');
-  }, [activeLetter?.id]);
+  }, [activeLetter?.id, activeLetter?.content]);
 
   // Sync form fields when active letter changes
   useEffect(() => {
@@ -390,27 +481,36 @@ export default function CoverLetterPage() {
       setCompanyName(activeLetter.company_name || '');
       setHiringManagerName(activeLetter.hiring_manager_name || '');
       setJobTitle(activeLetter.job_title || '');
+      setJobDescription(activeLetter.job_description ?? '');
       setTone(activeLetter.tone || 'professional');
       setLength(activeLetter.word_count_target || 'medium');
     }
   }, [activeLetter?.id]);
 
-  // After generation: flip accordion state
   useEffect(() => {
-    if (progressStep === 'done') {
-      setSettingsOpen(false);
-      setRefineOpen(true);
+    function handleClickOutside(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
     }
-  }, [progressStep]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const fillDemoData = () => {
-    setCompanyName(DEMO_DATA.companyName);
-    setJobTitle(DEMO_DATA.jobTitle);
-    setHiringManagerName(DEMO_DATA.hiringManagerName);
-    setJobDescription(DEMO_DATA.jobDescription);
-    setTone(DEMO_DATA.tone);
-    setLength(DEMO_DATA.length);
-  };
+  // When a PDF is uploaded in cover letter mode, sync its ID to selectedResumeId
+  // and auto-advance to editor — no need to click Continue manually
+  useEffect(() => {
+    if (resumeInputMode === 'upload' && uploadedResumeId) {
+      setSelectedResumeId(uploadedResumeId);
+      setStep('editor');
+    }
+  }, [uploadedResumeId, resumeInputMode]);
+
+  // Determine the file_path for the currently selected resume (for preview toggle)
+  const selectedResumeFilePath: string | null =
+    resumes.find((r: any) => r.id === selectedResumeId)?.file_path ||
+    (resumeInputMode === 'upload' ? uploadedResumeFilePath : null) ||
+    null;
 
   const buildPayload = useCallback(() => ({
     resumeId: resumeInputMode === 'existing' ? selectedResumeId : undefined,
@@ -432,7 +532,11 @@ export default function CoverLetterPage() {
     if (mode === 'edit' && activeLetter && activeLetter.id) {
       setShowRegenConfirm(true);
     } else {
-      create(buildPayload());
+      create(buildPayload()).then((result) => {
+        if (result?.resumeSaved) {
+          showToast('Resume saved to your library', 'success');
+        }
+      });
     }
   };
 
@@ -443,30 +547,78 @@ export default function CoverLetterPage() {
     }
   };
 
-  const handleSave = () => {
-    save(editorHtml);
+  const handleSave = () => save(editorHtml);
+
+  const buildFullPlainText = () => {
+    const dateString = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const bodyText = editorHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const lines: string[] = [];
+    if (fullName) lines.push(fullName);
+    if (jobTitle) lines.push(jobTitle);
+    const contact = [resumeContactInfo.email, resumeContactInfo.phone, resumeContactInfo.address].filter(Boolean).join(' | ');
+    if (contact) lines.push(contact);
+    lines.push('');
+    lines.push(dateString);
+    lines.push('');
+    if (hiringManagerName) lines.push(hiringManagerName);
+    if (companyName) lines.push(companyName);
+    lines.push('');
+    lines.push(bodyText);
+    return lines.join('\n');
   };
 
-  const handleRevert = () => {
-    if (activeLetter) {
-      setEditorHtml(activeLetter.generated_content);
+  const buildFullPdfHtml = () => {
+    const dateString = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const recipientBlock = [
+      hiringManagerName ? `<strong>${hiringManagerName}</strong>` : '',
+      companyName ? `<span>${companyName}</span>` : '',
+    ].filter(Boolean).join('<br/>');
+
+    let headerHtml: string;
+    if (selectedTemplate === 'bold_architect') {
+      const contact = [resumeContactInfo.email, resumeContactInfo.phone, resumeContactInfo.address].filter(Boolean).join(' &nbsp;&middot;&nbsp; ');
+      headerHtml = `
+        <h1 style="font-size:48px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;text-align:center;margin:0 0 16px;">${jobTitle || ''}</h1>
+        ${contact ? `<p style="text-align:center;font-size:13px;color:#444;margin:0 0 24px;">${contact}</p>` : ''}
+        <hr style="border:none;border-top:2px solid #111;margin-bottom:40px;"/>
+      `;
+    } else {
+      const contact = [resumeContactInfo.email, resumeContactInfo.phone, resumeContactInfo.address].filter(Boolean).join(' &middot; ');
+      headerHtml = `
+        ${fullName ? `<h1 style="font-size:22px;font-weight:bold;margin:0 0 4px;">${fullName}</h1>` : ''}
+        ${jobTitle ? `<p style="font-size:13px;color:#555;margin:0 0 6px;">${jobTitle}</p>` : ''}
+        ${contact ? `<p style="font-size:12px;color:#666;margin:0 0 16px;">${contact}</p>` : ''}
+        <hr style="border:none;border-top:1px solid #d1d5db;margin-bottom:24px;"/>
+      `;
     }
+
+    const font = selectedTemplate === 'bold_architect'
+      ? 'system-ui, Arial, sans-serif'
+      : 'Georgia, serif';
+
+    const body = `
+      <div style="font-family:${font};font-size:15px;line-height:1.7;padding:72px 80px;color:#111;background:white;max-width:900px;">
+        ${headerHtml}
+        <p style="margin-bottom:24px;">${dateString}</p>
+        ${recipientBlock ? `<div style="margin-bottom:24px;">${recipientBlock}</div>` : ''}
+        <div style="font-size:15px;line-height:1.7;">${editorHtml}</div>
+      </div>
+    `;
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><style>body{margin:0}p{margin:0 0 16px}ul{margin:0 0 16px;padding-left:24px}li{margin-bottom:4px}</style></head><body>${body}</body></html>`;
   };
 
   const handleCopyText = async () => {
-    const plainText = editorHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const plainText = buildFullPlainText();
     try {
       await navigator.clipboard.writeText(plainText);
       setCopiedIndicator(true);
       setTimeout(() => setCopiedIndicator(false), 2000);
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   };
 
   const handleDownloadTxt = () => {
     if (!activeLetter) return;
-    const plainText = editorHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const plainText = buildFullPlainText();
     const blob = new Blob([plainText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -478,10 +630,7 @@ export default function CoverLetterPage() {
 
   const handleDownloadPdf = async () => {
     if (!activeLetter) return;
-    const html = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"></head>
-<body><div style="font-family: Georgia, serif; font-size: 12pt; line-height: 1.8; padding: 48px; max-width: 800px; color: #1a1a1a;">${editorHtml}</div></body>
-</html>`;
+    const html = buildFullPdfHtml();
     try {
       const response = await apiClient.post('/export/pdf-from-html', { html }, {
         responseType: 'blob',
@@ -496,24 +645,7 @@ export default function CoverLetterPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch {
-      // silently fail
-    }
-  };
-
-  const handleFileSelect = async (file: File | null) => {
-    if (!file) return;
-    if (file.type !== 'application/pdf') {
-      return;
-    }
-    await parseUploadedFile(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileSelect(file);
+    } catch { /* silently fail */ }
   };
 
   const handleImprove = () => {
@@ -538,13 +670,11 @@ export default function CoverLetterPage() {
     if (isGenerating) return false;
     if (!jobDescription.trim() || !companyName.trim()) return false;
     if (resumeInputMode === 'existing') return Boolean(selectedResumeId);
-    if (resumeInputMode === 'upload') return Boolean(uploadedResumeText);
+    if (resumeInputMode === 'upload') return Boolean(uploadedResumeId);
     return false;
   })();
 
-  const showRevert = activeLetter !== null && editorHtml !== activeLetter.generated_content;
-  const showLetter =
-    activeLetter !== null && (progressStep === 'idle' || progressStep === 'done') && !isGenerating;
+  const showLetter = activeLetter !== null && (progressStep === 'idle' || progressStep === 'done') && !isGenerating;
   const showProgress = isGenerating;
   const showError = progressStep === 'error';
   const showEmpty = !showProgress && !showError && !showLetter && !isLoading;
@@ -580,9 +710,66 @@ export default function CoverLetterPage() {
     { value: 'long', label: 'Long', desc: '~400w' },
   ];
 
+  const fillDemo = () => {
+    setCompanyName('Google');
+    setJobTitle('Software Engineer');
+    setHiringManagerName('Sarah Chen');
+    setJobDescription(`We are looking for a Software Engineer to join our team at Google.
+
+Requirements:
+- 2+ years of experience with React, TypeScript, and Node.js
+- Strong understanding of REST APIs and system design
+- Experience with cloud platforms (GCP, AWS, or Azure)
+- Excellent problem-solving and communication skills
+- Familiarity with agile development practices
+
+Nice to have:
+- Experience with GraphQL
+- Open source contributions
+- Knowledge of machine learning fundamentals`);
+    setTone('enthusiastic');
+    setLength('medium');
+  };
+
+  const handleNewCoverLetter = () => {
+    startNew();
+    setCompanyName('');
+    setJobTitle('');
+    setHiringManagerName('');
+    setJobDescription('');
+    setTone('professional');
+    setLength('medium');
+    setCustomInstructions('');
+    setIsLeftJDExpanded(false);
+  };
+
+  const getLetterTabLabel = (letter: CoverLetter, idx: number) =>
+    letter.company_name || letter.job_title || `Letter ${idx + 1}`;
+
+  // ─── Step 1: Resume selection screen ────────────────────────────────────────
+
+  if (step === 'select-resume') {
+    return (
+      <SelectionStep
+        resumes={resumes}
+        selectedResumeId={selectedResumeId}
+        setSelectedResumeId={setSelectedResumeId}
+        resumeInputMode={resumeInputMode}
+        setResumeInputMode={setResumeInputMode}
+        uploadedFileName={uploadedFileName}
+        isParsing={isParsing}
+        parseError={parseError}
+        parseUploadedFile={parseUploadedFile}
+        onContinue={() => setStep('editor')}
+      />
+    );
+  }
+
+  // ─── Step 2: Two-column editor ───────────────────────────────────────────────
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* ── Dialogs ──────────────────────────────────────────────────────── */}
+    <>
+      {/* ── Dialogs ───────────────────────────────────────────────────────── */}
       {showRegenConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-800">
@@ -622,485 +809,702 @@ export default function CoverLetterPage() {
         </div>
       )}
 
-      {/* ── Main ──────────────────────────────────────────────────────────── */}
-      <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6" style={{ height: 'calc(100vh - 64px)' }}>
-        {/* Page breadcrumb */}
-        <div className="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <Link to="/dashboard" className="flex items-center gap-1 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-            <ChevronLeftIcon />
-            <span>Dashboard</span>
-          </Link>
-          <span className="text-gray-300 dark:text-gray-600">/</span>
-          <span className="font-medium text-gray-700 dark:text-gray-200">Cover Letters</span>
-        </div>
-        <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-12">
+      {/* ── Main editor layout ──────────────────────────────────────────────── */}
+      <div className="h-screen bg-background text-foreground font-sans flex flex-col overflow-hidden">
+        <main className="flex-1 w-full min-h-0 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-5 h-full">
 
-          {/* ─── Left panel — Accordion controls ────────────────────────── */}
-          <aside className="custom-scrollbar overflow-y-auto lg:col-span-4 xl:col-span-3">
-            <div className="space-y-3">
+            {/* ═══════════════════════════════════════════════════════════════
+                LEFT COLUMN — JOB SETTINGS (40%)
+            ═══════════════════════════════════════════════════════════════ */}
+            <div className="lg:col-span-2 flex flex-col h-full min-h-0 overflow-hidden relative pl-4 sm:pl-8 lg:pl-12 pr-6 pt-4 pb-4 border-r border-border/50 bg-background">
 
-              {/* Accordion 1: Job & Style Settings */}
-              <Accordion
-                title="Job & Style Settings"
-                icon={<Settings2Icon />}
-                accentColor="text-teal-600 dark:text-teal-400"
-                isOpen={settingsOpen}
-                onToggle={() => setSettingsOpen((o) => !o)}
-              >
-                <div className="space-y-4">
-                  {/* Fill demo data */}
-                  <div className="flex justify-end">
+              {/* Left header */}
+              <div className="shrink-0 h-[72px] flex items-center border-b border-border/50">
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="text-base font-bold tracking-tight text-foreground hover:text-teal-600 transition-colors"
+                >
+                  ProResumeAI
+                </button>
+              </div>
+
+              {/* ── Resume PDF Preview (replaces Job Settings when active) ─── */}
+              {showResumePreview && selectedResumeId && selectedResumeFilePath ? (
+                <div className="flex flex-col flex-1 min-h-0">
+                  <div className="flex items-center justify-between py-2 border-b border-border/50 shrink-0">
+                    <span className="text-sm font-semibold text-foreground">Resume Preview</span>
                     <button
                       type="button"
-                      onClick={fillDemoData}
-                      className="flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-2.5 py-1 text-xs text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-gray-400 dark:hover:text-gray-300"
+                      onClick={() => setShowResumePreview(false)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-accent rounded-lg px-3 py-1.5 transition-colors"
                     >
-                      <FlaskConicalIcon />
-                      Fill demo data
+                      <EyeOff size={12} /> Hide
                     </button>
                   </div>
-                  {/* Section: Your Resume */}
-                  <div>
-                    <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Your Resume</p>
-                    <SimpleTabs
-                      value={resumeInputMode}
-                      onChange={(v) => setResumeInputMode(v as 'existing' | 'upload')}
-                      tabs={[{ value: 'existing', label: 'Existing' }, { value: 'upload', label: 'Upload PDF' }]}
-                    />
-                    <div className="mt-3">
-                      {resumeInputMode === 'existing' ? (
-                        <select
-                          value={selectedResumeId}
-                          onChange={(e) => setSelectedResumeId(e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        >
-                          <option value="">— choose a resume —</option>
-                          {resumes.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.target_role || 'Untitled'} — {r.target_country || ''}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div>
-                          {/* Drag-drop zone */}
-                          <div
-                            onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                            onDragLeave={() => setIsDragging(false)}
-                            onDrop={handleDrop}
-                            onClick={() => fileInputRef.current?.click()}
-                            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 transition-colors ${
-                              isDragging
-                                ? 'border-teal-400 bg-teal-50 dark:bg-teal-900/20'
-                                : uploadedResumeText
-                                ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-300 bg-gray-50 hover:border-teal-400 hover:bg-teal-50/50 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-teal-500 dark:hover:bg-teal-900/10'
-                            }`}
-                          >
-                            {isParsing ? (
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="h-6 w-6 animate-spin rounded-full border-2 border-teal-200 border-t-teal-600" />
-                                <span className="text-xs text-gray-500">Parsing PDF...</span>
-                              </div>
-                            ) : uploadedResumeText ? (
-                              <div className="flex flex-col items-center gap-1 text-center">
-                                <span className="text-2xl">✓</span>
-                                <span className="text-xs font-medium text-green-700 dark:text-green-400">Resume ready</span>
-                                <span className="max-w-[160px] truncate text-xs text-gray-500">{uploadedFileName}</span>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center gap-2 text-center">
-                                <span className="text-gray-400 dark:text-gray-500"><UploadIcon /></span>
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Drop PDF here or click to browse</span>
-                                <span className="text-xs text-gray-400">Max 5 MB</span>
-                              </div>
-                            )}
-                          </div>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="application/pdf"
-                            className="hidden"
-                            onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
-                          />
-                          {parseError && (
-                            <p className="mt-1 text-xs text-red-600">{parseError}</p>
-                          )}
-                        </div>
-                      )}
+                  <iframe
+                    src={`/api/resume/${selectedResumeId}/file`}
+                    className="flex-1 w-full border-0"
+                    title="Resume Preview"
+                  />
+                </div>
+              ) : (
+              <>
+
+              {/* Expanded JD view */}
+              {isLeftJDExpanded ? (
+                <div className="flex flex-col flex-1 min-h-0 animate-in fade-in zoom-in-95 duration-200 pt-6">
+                  <div className="flex items-center justify-between mb-4 shrink-0 bg-teal-50 dark:bg-teal-900/10 p-3 border-y border-teal-100 dark:border-teal-900/50 mx-[-24px] px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                        <FileText size={16} />
+                      </div>
+                      <h2 className="text-lg font-bold text-teal-900 dark:text-teal-100">Job Target Data</h2>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsLeftJDExpanded(false)}
+                      className="flex items-center gap-1.5 text-xs font-semibold border border-teal-200 dark:border-teal-800 rounded-lg px-3 py-1.5 hover:bg-teal-100 dark:hover:bg-teal-900/30 text-teal-700 dark:text-teal-300 transition-colors"
+                    >
+                      <Minimize size={14} /> Collapse
+                    </button>
                   </div>
 
-                  {/* Section: The Job */}
-                  <div>
-                    <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">The Job</p>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                          Company Name <span className="text-red-500">*</span>
-                        </label>
+                  <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar space-y-4 pr-2 pb-4">
+                    <div className="grid grid-cols-2 gap-3 shrink-0">
+                      <div className="bg-card border border-border p-3.5 rounded-xl shadow-sm">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Company</p>
                         <input
-                          type="text"
-                          maxLength={255}
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
-                          placeholder="e.g. Acme Corp"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          placeholder="Company Name"
+                          className="w-full h-8 text-sm bg-transparent border-none outline-none font-semibold placeholder:text-muted-foreground/50"
                         />
                       </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Job Title</label>
+                      <div className="bg-card border border-border p-3.5 rounded-xl shadow-sm">
+                        <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Role</p>
                         <input
-                          type="text"
-                          maxLength={255}
                           value={jobTitle}
                           onChange={(e) => setJobTitle(e.target.value)}
-                          placeholder="e.g. Software Engineer (optional)"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          placeholder="Job Title"
+                          className="w-full h-8 text-sm bg-transparent border-none outline-none font-semibold placeholder:text-muted-foreground/50"
                         />
                       </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Hiring Manager</label>
-                        <input
-                          type="text"
-                          maxLength={255}
-                          value={hiringManagerName}
-                          onChange={(e) => setHiringManagerName(e.target.value)}
-                          placeholder="Name (optional)"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                          Job Description <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          rows={5}
-                          maxLength={5000}
-                          value={jobDescription}
-                          onChange={(e) => setJobDescription(e.target.value)}
-                          placeholder="Paste the job description here..."
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none"
-                        />
-                        <p className="mt-0.5 text-right text-xs text-gray-400">{jobDescription.length}/5000</p>
-                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col relative min-h-[300px]">
+                      <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider font-semibold">Full Job Description</p>
+                      <textarea
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value)}
+                        placeholder="Paste the full job description here..."
+                        className="flex-1 bg-background resize-none text-sm leading-relaxed p-4 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGenerate}
+                      disabled={!canGenerate}
+                      className="w-full h-11 text-sm rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition-all flex items-center justify-center gap-2 mt-2 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                      {isGenerating ? 'Generating...' : 'Generate Cover Letter'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Compact view */
+                <div className="flex-1 overflow-y-auto px-0 pt-6 custom-scrollbar pb-24 animate-in fade-in duration-300">
+                  <div className="mb-6 flex items-center justify-between shrink-0">
+                    <div>
+                      <h2 className="text-xl font-bold mb-1">Job Settings</h2>
+                      <p className="text-muted-foreground text-xs">Tell us about the role to generate your letter.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedResumeFilePath && (
+                        <button
+                          type="button"
+                          onClick={() => setShowResumePreview(true)}
+                          className="text-amber-600 hover:text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shrink-0"
+                        >
+                          <Eye size={12} /> Resume
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={fillDemo}
+                        className="text-violet-600 hover:text-violet-700 bg-violet-500/10 hover:bg-violet-500/20 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shrink-0"
+                      >
+                        <Wand2 size={12} /> Demo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsLeftJDExpanded(true)}
+                        className="text-teal-600 hover:text-teal-700 bg-teal-500/10 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shrink-0"
+                      >
+                        <Maximize size={14} /> Expand
+                      </button>
                     </div>
                   </div>
 
-                  {/* Section: Style */}
-                  <div>
-                    <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Style</p>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Tone</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {tones.map(({ value, label }) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setTone(value)}
-                              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                                tone === value
-                                  ? 'bg-teal-600 text-white'
-                                  : 'border border-gray-300 bg-white text-gray-600 hover:border-teal-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
+                  <div className="space-y-5">
+                    {/* Company */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground/80">Company Name</label>
+                      <input
+                        placeholder="e.g. Acme Corp"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        className="w-full h-10 text-sm px-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-teal-500/30 placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+
+                    {/* Job Title */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground/80">Job Title</label>
+                      <input
+                        placeholder="e.g. Software Engineer"
+                        value={jobTitle}
+                        onChange={(e) => setJobTitle(e.target.value)}
+                        className="w-full h-10 text-sm px-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-teal-500/30 placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+
+                    {/* Hiring Manager */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground/80">Hiring Manager <span className="font-normal text-muted-foreground">(optional)</span></label>
+                      <input
+                        placeholder="e.g. Jane Smith"
+                        value={hiringManagerName}
+                        onChange={(e) => setHiringManagerName(e.target.value)}
+                        className="w-full h-10 text-sm px-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-teal-500/30 placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+
+                    {/* Job Description with expand toggle */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-foreground/80">Job Description</label>
+                        <button
+                          type="button"
+                          onClick={() => setIsLeftJDExpanded(true)}
+                          className="text-teal-600 hover:text-teal-700 text-xs flex items-center gap-1"
+                        >
+                          <Maximize size={12} /> Full view
+                        </button>
                       </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Length</label>
-                        <div className="flex gap-1.5">
-                          {lengths.map(({ value, label, desc }) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setLength(value)}
-                              className={`flex-1 rounded-lg border py-1.5 text-center text-xs font-medium transition-colors ${
-                                length === value
-                                  ? 'border-teal-500 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
-                                  : 'border-gray-300 bg-white text-gray-600 hover:border-teal-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                              <div>{label}</div>
-                              <div className="text-[10px] opacity-60">{desc}</div>
-                            </button>
-                          ))}
-                        </div>
+                      <textarea
+                        placeholder="Paste the key requirements..."
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value)}
+                        className="w-full bg-background border border-border rounded-lg text-sm resize-none h-32 focus:outline-none focus:ring-2 focus:ring-teal-500/30 p-3 placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+
+                    {/* Tone pills */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground/80">Tone</label>
+                      <div className="flex flex-wrap gap-2">
+                        {tones.map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => setTone(t.value)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                              tone === t.value
+                                ? 'bg-teal-600 text-white border-teal-600'
+                                : 'bg-background text-muted-foreground border-border hover:border-teal-400 hover:text-teal-600'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Generate button */}
+                    {/* Length radio */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground/80">Length</label>
+                      <div className="flex gap-2">
+                        {lengths.map((l) => (
+                          <button
+                            key={l.value}
+                            type="button"
+                            onClick={() => setLength(l.value)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors border ${
+                              length === l.value
+                                ? 'bg-teal-600 text-white border-teal-600'
+                                : 'bg-background text-muted-foreground border-border hover:border-teal-400'
+                            }`}
+                          >
+                            <div>{l.label}</div>
+                            <div className="text-[10px] opacity-70 mt-0.5">{l.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom instructions */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-foreground/80">Custom Instructions <span className="font-normal text-muted-foreground">(optional)</span></label>
+                        <span className="text-[10px] text-muted-foreground">{customInstructions.length}/500</span>
+                      </div>
+                      <textarea
+                        placeholder="Any additional guidance for the AI..."
+                        value={customInstructions}
+                        onChange={(e) => setCustomInstructions(e.target.value)}
+                        maxLength={500}
+                        className="w-full bg-background border border-border rounded-lg text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-teal-500/30 p-3 placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sticky generate button (compact view only) */}
+              {!isLeftJDExpanded && (
+                <div className="absolute bottom-0 left-0 right-0 px-6 pb-5 pt-4 bg-gradient-to-t from-background via-background to-transparent">
                   <button
+                    type="button"
                     onClick={handleGenerate}
                     disabled={!canGenerate}
-                    className="w-full h-11 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                    className="w-full h-11 text-sm rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {isGenerating
-                      ? 'Generating...'
-                      : mode === 'edit' && activeLetter?.id
-                      ? '↺ Regenerate'
-                      : 'Generate Cover Letter'}
+                    {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                    {isGenerating ? 'Analyzing...' : 'Generate Cover Letter'}
                   </button>
                 </div>
-              </Accordion>
-
-              {/* Accordion 2: Refine with AI — only when saved letter exists */}
-              {activeLetter && (
-                <Accordion
-                  title="Refine with AI"
-                  icon={<SparklesIcon />}
-                  accentColor="text-amber-500"
-                  isOpen={refineOpen}
-                  onToggle={() => setRefineOpen((o) => !o)}
-                >
-                  <div className="space-y-3">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Personalise the generated letter by adding your own story. AI will weave them in naturally.
-                    </p>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                        Why this company?
-                      </label>
-                      <textarea
-                        rows={3}
-                        maxLength={300}
-                        value={whyThisCompany}
-                        onChange={(e) => setWhyThisCompany(e.target.value)}
-                        placeholder="What excites you about this specific company..."
-                        className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm dark:border-amber-700 dark:bg-gray-700 dark:text-gray-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
-                      />
-                      <p className="mt-0.5 text-right text-xs text-gray-400">{whyThisCompany.length}/300</p>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                        Achievement to highlight
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={200}
-                        value={achievementToHighlight}
-                        onChange={(e) => setAchievementToHighlight(e.target.value)}
-                        placeholder="e.g. Grew user base 40% in 3 months..."
-                        className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm dark:border-amber-700 dark:bg-gray-700 dark:text-gray-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                      />
-                      <p className="mt-0.5 text-right text-xs text-gray-400">{achievementToHighlight.length}/200</p>
-                    </div>
-                    <button
-                      onClick={handleImprove}
-                      disabled={!whyThisCompany.trim() && !achievementToHighlight.trim()}
-                      className="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                    >
-                      {progressStep === 'generating' ? 'Improving...' : 'Improve with AI'}
-                    </button>
-                  </div>
-                </Accordion>
               )}
-
-            </div>
-          </aside>
-
-          {/* ─── Right panel — Editor ───────────────────────────────────── */}
-          <section className="flex flex-col overflow-hidden lg:col-span-8 xl:col-span-9">
-
-            {/* Editor header */}
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                <span className="text-teal-600 dark:text-teal-400"><FileTextIcon /></span>
-                Cover Letter Editor
-              </div>
-              <div className="flex items-center gap-2">
-                {showLetter && (
-                  <>
-                    {showRevert && (
-                      <button onClick={handleRevert} className="rounded-md px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline">
-                        Revert to AI original
-                      </button>
-                    )}
-                    <button onClick={handleCopyText} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-                      <CopyIcon />
-                      {copiedIndicator ? 'Copied!' : 'Copy Text'}
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaving || editorHtml === activeLetter?.content}
-                      className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {savedIndicator ? 'Saved ✓' : isSaving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </>
-                )}
-              </div>
+              </>
+              )}
             </div>
 
-            {/* Letters tab row */}
-            {coverLetters.length > 0 && (
-              <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                <button
-                  onClick={startNew}
-                  className="flex-shrink-0 rounded-lg border border-dashed border-teal-400 px-3 py-1.5 text-xs font-medium text-teal-600 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/20"
-                >
-                  + New
-                </button>
-                {coverLetters.map((letter: CoverLetter) => (
-                  <div
-                    key={letter.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => selectLetter(letter)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectLetter(letter); }}
-                    className={`relative flex-shrink-0 cursor-pointer rounded-lg border px-3 py-1.5 text-left text-xs transition-colors ${
-                      activeLetter?.id === letter.id
-                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30'
-                        : 'border-gray-300 bg-white hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      <div className="max-w-[120px]">
-                        <div className="truncate font-medium text-gray-900 dark:text-gray-100">
-                          {letter.company_name || 'No company'}
-                        </div>
-                        <div className="truncate text-gray-400">
-                          {letter.job_title || 'Cover Letter'}
-                        </div>
-                        <div className="text-gray-400">{formatRelativeDate(letter.updated_at)}</div>
+            {/* ═══════════════════════════════════════════════════════════════
+                RIGHT COLUMN — EDITOR CANVAS (60%)
+            ═══════════════════════════════════════════════════════════════ */}
+            <div className="lg:col-span-3 flex flex-col h-full min-h-0 bg-muted/10 border-l border-border/50">
+              <div className="bg-background flex-1 flex flex-col relative min-h-0 overflow-hidden">
+
+                {/* Right header */}
+                <div className="px-4 sm:px-6 pr-4 sm:pr-8 lg:pr-12 h-[72px] border-b border-border/50 bg-background flex items-center justify-between gap-3 z-20 relative shrink-0">
+                  {/* Left: Active letter context */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {activeLetter && (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <FileText size={14} className="text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                          {activeLetter.company_name || activeLetter.job_title || 'Cover Letter'}
+                        </span>
+                        {activeLetter.company_name && activeLetter.job_title && (
+                          <span className="text-xs text-muted-foreground truncate hidden sm:inline">
+                            — {activeLetter.job_title}
+                          </span>
+                        )}
                       </div>
+                    )}
+                  </div>
+
+                  {activeLetter && (
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(letter.id); }}
-                        className="ml-1 rounded p-0.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
-                        aria-label="Delete"
+                        type="button"
+                        onClick={() => setShowRefinePanel(!showRefinePanel)}
+                        className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm border transition-colors shrink-0 ${
+                          showRefinePanel
+                            ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800'
+                            : 'text-amber-600 border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+                        }`}
                       >
-                        ×
+                        <Sparkles size={14} className="text-amber-500" />
+                        <span className="hidden xl:inline">Refine with AI</span>
+                        <span className="xl:hidden">Refine</span>
                       </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Canvas */}
-            <div className="custom-scrollbar relative flex-1 overflow-y-auto rounded-xl bg-gray-100/60 dark:bg-gray-900/40 p-4">
-
-              {/* Loading */}
-              {isLoading && (
-                <div className="flex h-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600" />
-                </div>
-              )}
-
-              {/* Empty state */}
-              {!isLoading && showEmpty && (
-                <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center">
-                  <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10">
-                    <span className="text-teal-500 dark:text-teal-400">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </span>
-                  </div>
-                  <h2 className="text-base font-semibold text-gray-700 dark:text-gray-300">Ready to generate</h2>
-                  <p className="mt-1.5 text-sm text-gray-400 dark:text-gray-500">Fill in the settings on the left and click Generate</p>
-                </div>
-              )}
-
-              {/* 3-step progress overlay */}
-              {!isLoading && showProgress && (
-                <div className="flex h-full min-h-[400px] flex-col items-center justify-center px-8">
-                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40">
-                    <span className="animate-pulse text-teal-600 dark:text-teal-400"><Wand2Icon /></span>
-                  </div>
-                  <div className="w-full max-w-sm space-y-6">
-                    <ProgressStepRow label="Scanning resume and job description" status={step1Status} />
-                    <ProgressStepRow label="Analyzing keyword matches" status={step2Status}>
-                      {progressStep === 'keywords-ready' && keywords.matched.length + keywords.missing.length > 0 && (
-                        <div className="ml-10 flex flex-wrap gap-1.5">
-                          {keywords.matched.slice(0, 6).map((kw) => (
-                            <span key={kw} className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">✓ {kw}</span>
-                          ))}
-                          {keywords.missing.slice(0, 6).map((kw) => (
-                            <span key={kw} className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">✗ {kw}</span>
-                          ))}
-                        </div>
-                      )}
-                    </ProgressStepRow>
-                    <ProgressStepRow label="Writing your ATS-optimized cover letter" status={step3Status} />
-                  </div>
-                </div>
-              )}
-
-              {/* Error state */}
-              {!isLoading && showError && (
-                <div className="flex h-full min-h-[400px] flex-col items-center justify-center px-8">
-                  <div className="w-full max-w-sm rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20">
-                    <p className="mb-4 text-sm text-red-700 dark:text-red-400">{error}</p>
-                    <button onClick={reset} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Try again</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Letter content */}
-              {!isLoading && showLetter && (
-                <div>
-                  {/* Paper document */}
-                  <div className="mx-auto w-full max-w-3xl rounded-sm bg-white shadow-xl ring-1 ring-black/5 dark:bg-gray-900 dark:ring-white/5" style={{ minHeight: '1056px' }}>
-                    <EditorPanel
-                      content={editorHtml}
-                      onChange={setEditorHtml}
-                    />
-                  </div>
-
-                  {/* ATS Keyword Coverage */}
-                  {allKeywords.length > 0 && (
-                    <div className="mx-auto mt-6 w-full max-w-3xl">
-                      <h3 className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">ATS Keyword Coverage</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {allKeywords.map(({ keyword }) => {
-                          const found = editorHtml.toLowerCase().includes(keyword.toLowerCase());
-                          return (
-                            <span
-                              key={keyword}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                found
-                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                              }`}
+                      <div className="w-px h-5 bg-border mx-1 shrink-0 hidden sm:block" />
+                      <button
+                        type="button"
+                        onClick={handleCopyText}
+                        className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm border border-border hover:bg-muted/50 transition-colors shrink-0"
+                      >
+                        <Copy size={14} />
+                        <span>{copiedIndicator ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        {isSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                        {savedIndicator ? 'Saved ✓' : 'Save'}
+                      </button>
+                      <div className="relative" ref={exportMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setShowExportMenu(!showExportMenu)}
+                          className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm border border-border hover:bg-muted/50 transition-colors shrink-0"
+                        >
+                          <Download size={14} />
+                          <span className="hidden sm:inline">Export</span>
+                          <ChevronDown size={12} className="text-muted-foreground" />
+                        </button>
+                        {showExportMenu && (
+                          <div className="absolute right-0 top-full mt-1 w-40 bg-background text-foreground border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => { handleDownloadPdf(); setShowExportMenu(false); }}
+                              className="flex items-center gap-2 w-full px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors"
                             >
-                              <span>{found ? '✅' : '❌'}</span>
-                              {keyword}
-                            </span>
-                          );
-                        })}
+                              <FileText size={13} />
+                              Download PDF
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleDownloadTxt(); setShowExportMenu(false); }}
+                              className="flex items-center gap-2 w-full px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-t border-border/50"
+                            >
+                              <AlignLeft size={13} />
+                              Download TXT
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
+                </div>
 
-                  {/* Download bar */}
-                  <div className="mx-auto mt-4 mb-8 flex w-full max-w-3xl items-center gap-3">
+                {/* Document tab bar */}
+                <div className="bg-background border-b border-border/50 px-4 sm:px-6 py-2 flex items-center shrink-0 z-10 overflow-x-auto no-scrollbar shadow-sm gap-2">
+                  <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border/40 shadow-inner flex-nowrap w-fit">
+                    {coverLetters.map((letter, idx) => (
+                      <button
+                        key={letter.id}
+                        onClick={() => selectLetter(letter)}
+                        className={`group relative px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all max-w-[150px] truncate shrink-0 flex items-center gap-1.5 ${
+                          activeLetter?.id === letter.id
+                            ? 'bg-white dark:bg-zinc-800 text-foreground shadow-sm border border-border/50'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-white/50 dark:hover:bg-zinc-800/50 border border-transparent'
+                        }`}
+                      >
+                        <span className="truncate">{getLetterTabLabel(letter, idx)}</span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(letter.id); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setConfirmDeleteId(letter.id); } }}
+                          className="opacity-0 group-hover:opacity-100 ml-1 rounded text-muted-foreground hover:text-red-500 transition-opacity shrink-0"
+                        >
+                          <X size={12} />
+                        </span>
+                      </button>
+                    ))}
+
+                    <AnimatePresence>
+                      {mode === 'new' && coverLetters.length > 0 && (
+                        <motion.div
+                          key="draft-tab"
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -8 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[13px] font-medium border border-dashed border-teal-400 bg-teal-500/10 text-teal-700 dark:text-teal-400 shrink-0"
+                        >
+                          <Edit3 size={12} />
+                          New Draft
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {coverLetters.length > 0 && (
                     <button
-                      onClick={handleDownloadPdf}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                      type="button"
+                      onClick={handleNewCoverLetter}
+                      title="New letter"
+                      className="flex items-center justify-center w-7 h-7 rounded-lg border border-dashed border-border text-muted-foreground hover:border-teal-400 hover:text-teal-600 transition-colors shrink-0"
                     >
-                      Download PDF
+                      <Plus size={14} />
                     </button>
+                  )}
+                  <div className="ml-auto shrink-0">
                     <button
-                      onClick={handleDownloadTxt}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                      type="button"
+                      onClick={() => setShowTemplatePicker(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-border/50 hover:border-border transition-colors"
                     >
-                      Download .txt
+                      <Palette size={13} />
+                      Templates
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
-          </section>
 
-        </div>
-      </main>
-    </div>
+                {/* Formatting toolbar — above paper, below tab bar */}
+                <FormatToolbar editor={activeEditor} />
+
+                {/* Editor canvas */}
+                <div className="flex-1 flex overflow-hidden relative bg-muted/10">
+                  <div className="flex-1 overflow-y-auto relative flex flex-col items-center custom-scrollbar w-full">
+
+                    {/* Loading spinner */}
+                    {isLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="animate-spin text-teal-600" size={32} />
+                      </div>
+                    )}
+
+                    {/* Generating overlay */}
+                    {showProgress && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-20 px-8">
+                        <div className="relative w-20 h-20 mb-8">
+                          <div className="absolute inset-0 rounded-full border-4 border-teal-500/20" />
+                          <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
+                          <Wand2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-teal-600 animate-pulse" size={28} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-6">Crafting your letter...</h3>
+                        <div className="w-full max-w-xs space-y-4">
+                          <ProgressStepRow label="Extracting keywords from JD" status={step1Status}>
+                            {step2Status === 'done' || step2Status === 'active' ? (
+                              <div className="ml-10 flex flex-wrap gap-1.5">
+                                {keywords.matched.slice(0, 5).map((kw) => (
+                                  <span key={kw} className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700">✓ {kw}</span>
+                                ))}
+                                {keywords.missing.slice(0, 3).map((kw) => (
+                                  <span key={kw} className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-600">✗ {kw}</span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </ProgressStepRow>
+                          <ProgressStepRow label="Matching to your resume" status={step2Status} />
+                          <ProgressStepRow label="Writing your cover letter" status={step3Status} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error state */}
+                    {showError && (
+                      <div className="w-full max-w-md mt-16 mx-4">
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={20} />
+                            <div>
+                              <h3 className="font-semibold text-red-800 mb-1">Generation failed</h3>
+                              <p className="text-sm text-red-700">{error}</p>
+                              <button
+                                type="button"
+                                onClick={reset}
+                                className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                              >
+                                <RefreshCw size={14} /> Try Again
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty state */}
+                    {showEmpty && !isLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                          <FileText size={80} strokeWidth={1} />
+                          <p className="text-sm">Fill in the form and generate your letter</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Paper document */}
+                    {showLetter && selectedTemplate === 'bold_architect' && (
+                      <div className="w-full max-w-[850px] flex flex-col z-10 pb-16 px-4 md:px-8 py-8">
+                        <BoldArchitectTemplate
+                          jobTitle={jobTitle}
+                          email={resumeContactInfo.email}
+                          phone={resumeContactInfo.phone}
+                          address={resumeContactInfo.address}
+                          hiringManagerName={hiringManagerName}
+                          companyName={companyName}
+                          editorHtml={editorHtml}
+                          allKeywords={allKeywords}
+                          onEditorChange={setEditorHtml}
+                          onEditorReady={setActiveEditor}
+                          EditorPanel={EditorPanel}
+                        />
+                      </div>
+                    )}
+
+                    {showLetter && selectedTemplate !== 'bold_architect' && (
+                      <div className="w-full max-w-[850px] flex flex-col z-10 pb-16 px-4 md:px-8 py-8">
+                        <div className="bg-white text-black shadow-xl ring-1 ring-black/5 rounded-sm flex flex-col min-h-[1056px] pt-[72px] pb-[72px] px-[80px] font-sans text-[15px] leading-relaxed relative">
+
+                          {/* Header */}
+                          <div className="flex flex-col items-start mb-8 w-full border-b border-gray-300 pb-6">
+                            <h1 className="text-4xl tracking-tight mb-2 font-bold text-gray-900">{fullName || 'Your Name'}</h1>
+                            <h2 className="text-xl text-gray-600 mb-4">{jobTitle || 'Job Title'}</h2>
+                            <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-500">
+                              {resumeContactInfo.email && <span>{resumeContactInfo.email}</span>}
+                              {resumeContactInfo.email && resumeContactInfo.phone && <span className="w-1 h-1 bg-gray-300 rounded-full" />}
+                              {resumeContactInfo.phone && <span>{resumeContactInfo.phone}</span>}
+                              {resumeContactInfo.address && (resumeContactInfo.email || resumeContactInfo.phone) && <span className="w-1 h-1 bg-gray-300 rounded-full" />}
+                              {resumeContactInfo.address && <span>{resumeContactInfo.address}</span>}
+                            </div>
+                          </div>
+
+                          {/* Recipient info */}
+                          <div className="mb-8 text-[15px] text-gray-800">
+                            <div className="mb-6 font-semibold">
+                              {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                            </div>
+                            {(hiringManagerName || companyName) && (
+                              <div className="flex flex-col gap-0.5">
+                                {hiringManagerName && <span className="font-semibold">{hiringManagerName}</span>}
+                                {companyName && <span>{companyName}</span>}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Body — TipTap editor */}
+                          <div className="flex-1">
+                            <EditorPanel content={editorHtml} onChange={setEditorHtml} onEditorReady={setActiveEditor} />
+                          </div>
+
+                          {/* Footer: word count + keyword badges */}
+                          <div className="mt-8 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                              {editorHtml.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length} words
+                            </span>
+                            {allKeywords.slice(0, 8).map(({ keyword, matched }) => (
+                              <span
+                                key={keyword}
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${matched ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
+                              >
+                                {matched ? '✓' : '✗'} {keyword}
+                              </span>
+                            ))}
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* ─── Cover Letter Template Picker ────────────────────────────────────── */}
+        {showTemplatePicker && (
+          <CoverLetterTemplatePicker
+            selected={selectedTemplate}
+            onSelect={setSelectedTemplate}
+            onClose={() => setShowTemplatePicker(false)}
+          />
+        )}
+
+        {/* ─── Floating Refine with AI panel ──────────────────────────────────── */}
+        <AnimatePresence>
+          {showRefinePanel && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.2 }}
+              drag
+              dragMomentum={false}
+              dragConstraints={{ top: -800, left: -1000, right: 0, bottom: 0 }}
+              className="fixed bottom-10 right-10 z-[99999] w-full max-w-[380px] bg-card border border-amber-200/50 dark:border-amber-900/50 shadow-2xl rounded-2xl overflow-hidden flex flex-col"
+              style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.3)' }}
+            >
+              {/* Panel header (draggable handle) */}
+              <div className="p-4 border-b border-amber-500/20 bg-amber-500/10 flex items-center justify-between shrink-0 cursor-grab active:cursor-grabbing">
+                <h3 className="font-semibold flex items-center gap-2 text-sm text-amber-700 dark:text-amber-500 pointer-events-none">
+                  <Sparkles size={16} className="text-amber-500" /> Refine with AI
+                </h3>
+                <button
+                  type="button"
+                  onPointerDownCapture={(e) => e.stopPropagation()}
+                  onClick={() => setShowRefinePanel(false)}
+                  className="h-6 w-6 rounded-full flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Panel body (non-draggable) */}
+              <div
+                className="p-5 w-full overflow-y-auto custom-scrollbar flex-1 flex flex-col space-y-5 bg-amber-500/5 cursor-default"
+                onPointerDownCapture={(e) => e.stopPropagation()}
+              >
+                <p className="text-xs text-amber-800/80 dark:text-amber-500/80 leading-relaxed">
+                  Add personal context. The AI will weave this naturally into your generated letter.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 flex justify-between">
+                      Why this company?
+                      <span className="font-normal opacity-70 text-[10px]">{whyThisCompany.length}/300</span>
+                    </label>
+                    <textarea
+                      placeholder="e.g. I've used your product since 2023..."
+                      className="w-full min-h-[100px] bg-white dark:bg-black/40 text-sm resize-none border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      value={whyThisCompany}
+                      onChange={(e) => setWhyThisCompany(e.target.value)}
+                      maxLength={300}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-amber-900 dark:text-amber-400 flex justify-between">
+                      Key achievement
+                      <span className="font-normal opacity-70 text-[10px]">{achievementToHighlight.length}/200</span>
+                    </label>
+                    <textarea
+                      placeholder="e.g. Led a team of 4 to reduce API response time by 60%"
+                      className="w-full min-h-[80px] bg-white dark:bg-black/40 text-sm resize-none border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      value={achievementToHighlight}
+                      onChange={(e) => setAchievementToHighlight(e.target.value)}
+                      maxLength={200}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleImprove}
+                    disabled={(!whyThisCompany && !achievementToHighlight) || isGenerating || !activeLetter}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg flex items-center justify-center gap-2 h-11 mt-2 font-medium text-sm transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                    {isGenerating ? 'Applying Magic...' : 'Improve Cover Letter'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 10px; }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.5); }
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            .ProseMirror p { margin-bottom: 1em; }
+            .ProseMirror ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+            .ProseMirror ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+          `
+        }} />
+      </div>
+      <ConfirmLeaveModal
+        isOpen={blocker.state === 'blocked'}
+        onConfirm={() => blocker.proceed?.()}
+        onCancel={() => blocker.reset?.()}
+        message="Are you sure you want to go back to the Home page?"
+      />
+    </>
   );
 }

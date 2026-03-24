@@ -32,6 +32,10 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Aborted requests (AbortController.abort() / axios cancel) are not server errors
+    if (axios.isCancel(error) || error.code === 'ERR_CANCELED') {
+      return Promise.reject(error);
+    }
     if (!error.response) {
       // Network error or timeout — server unreachable
       dispatchServerDown(error.code);
@@ -51,8 +55,18 @@ export async function uploadResume(formData: FormData, options?: { signal?: Abor
   return response.data;
 }
 
+export async function uploadResumeSimple(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/resume/upload-simple', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
+  });
+  return response.data as { resume: import('../types').Resume };
+}
+
 export async function buildResume(formData: Record<string, unknown>) {
-  const response = await api.post('/resume/build', formData);
+  const response = await api.post('/resume/build', formData, { timeout: 60000 });
   return response.data;
 }
 
@@ -247,7 +261,7 @@ export async function getCoverLetter(id: string) {
 }
 
 export async function generateCoverLetter(payload: GenerateCoverLetterPayload) {
-  const response = await api.post('/cover-letter/generate', payload);
+  const response = await api.post('/cover-letter/generate', payload, { timeout: 60000 });
   return response.data;
 }
 
@@ -257,7 +271,7 @@ export async function saveCoverLetter(id: string, content: string) {
 }
 
 export async function extractKeywords(payload: Record<string, unknown>, jobDescription?: string) {
-  const response = await api.post('/cover-letter/extract-keywords', { ...payload, jobDescription });
+  const response = await api.post('/cover-letter/extract-keywords', { ...payload, jobDescription }, { timeout: 60000 });
   return response.data;
 }
 
@@ -272,7 +286,7 @@ export async function listCoverLettersByResume(resumeId: string) {
 }
 
 export async function regenerateCoverLetter(id: string, payload: GenerateCoverLetterPayload) {
-  const response = await api.post(`/cover-letter/${id}/regenerate`, payload);
+  const response = await api.post(`/cover-letter/${id}/regenerate`, payload, { timeout: 60000 });
   return response.data;
 }
 
@@ -291,7 +305,7 @@ export async function parseResumeText(file: File): Promise<{ parsedText: string 
 }
 
 export async function improveCoverLetter(id: string, payload: Record<string, unknown>) {
-  const response = await api.post(`/cover-letter/${id}/improve`, payload);
+  const response = await api.post(`/cover-letter/${id}/improve`, payload, { timeout: 60000 });
   return response.data;
 }
 

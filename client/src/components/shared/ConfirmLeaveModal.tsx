@@ -2,9 +2,10 @@ interface Props {
   isOpen: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  message?: string;
 }
 
-export default function ConfirmLeaveModal({ isOpen, onConfirm, onCancel }: Props) {
+export default function ConfirmLeaveModal({ isOpen, onConfirm, onCancel, message = 'You have unsaved changes. Leaving now will discard your resume data.' }: Props) {
   if (!isOpen) return null;
 
   return (
@@ -19,7 +20,7 @@ export default function ConfirmLeaveModal({ isOpen, onConfirm, onCancel }: Props
           Leave page?
         </h2>
         <p className="text-sm text-muted-foreground mb-6">
-          You have unsaved changes. Leaving now will discard your resume data.
+          {message}
         </p>
         <div className="flex gap-3 justify-end">
           <button

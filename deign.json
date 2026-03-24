@@ -8,7 +8,7 @@
             "logo": {
                 "icon": "Sparkles (Lucide)",
                 "iconStyle": "w-10 h-10 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20",
-                "text": "Rezilient.",
+                "text": "ProResumeAI",
                 "textStyle": "text-xl font-bold font-heading tracking-tight"
             },
             "actions": {

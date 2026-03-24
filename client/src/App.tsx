@@ -14,6 +14,7 @@ import DashboardPage from './pages/DashboardPage';
 import ResumeUploadPage from './pages/ResumeUploadPage';
 import ResumeBuilderPage from './pages/ResumeBuilderPage';
 import ResumeAnalysisPage from './pages/ResumeAnalysisPage';
+import UploadedResumeViewPage from './pages/UploadedResumeViewPage';
 import CoverLetterPage from './pages/CoverLetterPage';
 import NotFoundPage from './pages/NotFoundPage';
 import SkillsDemo from './pages/SkillsDemo';
@@ -30,23 +31,16 @@ function ProtectedLayout() {
 }
 
 function AppLayout() {
-  const { loading } = useAuthContext();
+  // No useAuthContext() here — ProtectedLayout handles auth gating for protected routes
   const { toasts, showToast, removeToast } = useToast();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
 
-  const isBuilderRoute = location.pathname.startsWith('/build') || location.pathname === '/thumbnail-preview';
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-primary" />
-          <span className="text-sm text-muted-foreground">Loading...</span>
-        </div>
-      </div>
-    );
-  }
+  const isBuilderRoute =
+    location.pathname.startsWith('/build') ||
+    location.pathname === '/thumbnail-preview' ||
+    location.pathname.startsWith('/cover-letter') ||
+    /^\/resume\/[^/]+\/view$/.test(location.pathname);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -86,6 +80,7 @@ const router = createBrowserRouter([
           { path: '/build', element: <ResumeBuilderPage /> },
           { path: '/build/:id', element: <ResumeBuilderPage /> },
           { path: '/resume/:id', element: <ResumeAnalysisPage /> },
+          { path: '/resume/:id/view', element: <UploadedResumeViewPage /> },
           { path: '/cover-letter/new', element: <CoverLetterPage /> },
         ],
       },
