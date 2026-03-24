@@ -52,7 +52,7 @@ export interface GenerateResumeResult {
   };
 }
 
-function formatFormDataForPrompt(data: ResumeFormInput): string {
+export function formatFormDataForPrompt(data: ResumeFormInput): string {
   const lines: string[] = [];
 
   lines.push(`Name: ${data.fullName}`);

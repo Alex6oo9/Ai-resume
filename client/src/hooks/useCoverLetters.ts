@@ -19,6 +19,14 @@ function sleep(ms: number): Promise<void> {
 export type CoverLetterMode = 'new' | 'edit';
 export type ResumeInputMode = 'existing' | 'upload';
 
+export interface ExtractedContactInfo {
+  fullName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  country?: string | null;
+}
+
 export interface UseCoverLettersReturn {
   coverLetters: CoverLetter[];
   activeLetter: CoverLetter | null;
@@ -37,6 +45,7 @@ export interface UseCoverLettersReturn {
   uploadedResumeFilePath: string | null;
   isParsing: boolean;
   parseError: string | null;
+  extractedContactInfo: ExtractedContactInfo | null;
   // Methods
   startNew: () => void;
   selectLetter: (letter: CoverLetter) => void;
@@ -70,6 +79,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
   const [uploadedResumeFilePath, setUploadedResumeFilePath] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [extractedContactInfo, setExtractedContactInfo] = useState<ExtractedContactInfo | null>(null);
 
   useEffect(() => {
     setCoverLetters([]);
@@ -209,6 +219,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
       matchedKeywords = res.matchedKeywords;
       missingKeywords = res.missingKeywords;
       setKeywords({ matched: matchedKeywords, missing: missingKeywords });
+      if (res.contactInfo) setExtractedContactInfo(res.contactInfo);
       setProgressStep('keywords-ready');
       await sleep(1200);
 
@@ -312,6 +323,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
   const reset = () => {
     setProgressStep('idle');
     setError(null);
+    setExtractedContactInfo(null);
   };
 
   const improve = async (
@@ -355,6 +367,7 @@ export function useCoverLetters(resumeId: string | null): UseCoverLettersReturn 
     uploadedResumeFilePath,
     isParsing,
     parseError,
+    extractedContactInfo,
     startNew,
     selectLetter,
     loadLetter,

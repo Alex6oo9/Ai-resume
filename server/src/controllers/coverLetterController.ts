@@ -108,8 +108,30 @@ export const extractKeywords = async (
       resumeText = text;
     }
 
-    const result = await extractKeywordsService({ resumeText, jobDescription });
-    res.json(result);
+    const [kwResult, structureResult] = await Promise.all([
+      extractKeywordsService({ resumeText, jobDescription }),
+      extractResumeStructure({ resumeText }).catch(() => null),
+    ]);
+
+    // Store structured data in resume_data so future loads have contact info
+    if (resumeId && structureResult) {
+      await pool.query(
+        `INSERT INTO resume_data (resume_id, form_data)
+         VALUES ($1, $2)
+         ON CONFLICT (resume_id) DO UPDATE SET form_data = $2`,
+        [resumeId, JSON.stringify(structureResult)]
+      ).catch(() => {}); // non-fatal
+    }
+
+    const contactInfo = structureResult ? {
+      fullName: structureResult.fullName ?? null,
+      email: structureResult.email ?? null,
+      phone: structureResult.phone ?? null,
+      city: structureResult.city ?? null,
+      country: structureResult.country ?? null,
+    } : null;
+
+    res.json({ ...kwResult, contactInfo });
   } catch (err) {
     next(err);
   }

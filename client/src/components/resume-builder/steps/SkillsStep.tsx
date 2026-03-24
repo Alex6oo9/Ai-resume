@@ -226,7 +226,7 @@ export default function SkillsStep({
                       onChange={(e) => updateCategoryName(catIndex, e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       placeholder="Category name..."
-                      className="truncate text-base font-semibold bg-transparent border-none outline-none focus:ring-0 focus:border-b focus:border-primary/50 min-w-0 w-full cursor-text"
+                      className="truncate text-base font-semibold rounded-md px-2 py-0.5 -mx-2 bg-primary/5 border border-primary/10 hover:bg-primary/10 hover:border-primary/30 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-150 min-w-0 w-full cursor-text"
                     />
                     <span className="shrink-0 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 min-w-[1.25rem]">
                       {cat.items.length}
@@ -381,7 +381,7 @@ export default function SkillsStep({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
                       onClick={() => removeLanguage(index)}
                     >
                       <Trash2 className="w-4 h-4" />

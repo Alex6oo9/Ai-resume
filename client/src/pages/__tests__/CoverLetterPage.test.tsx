@@ -103,6 +103,7 @@ const defaultHookReturn = {
   uploadedResumeFilePath: null,
   isParsing: false,
   parseError: null,
+  extractedContactInfo: null,
   startNew: vi.fn(),
   selectLetter: vi.fn(),
   loadLetter: vi.fn(),

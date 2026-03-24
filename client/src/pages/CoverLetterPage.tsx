@@ -34,7 +34,9 @@ import { listResumes, apiClient, getResume } from '../utils/api';
 import { useCoverLetters } from '../hooks/useCoverLetters';
 import { useAuth } from '../hooks/useAuth';
 import { useToastContext } from '../contexts/ToastContext';
-import type { CoverLetter, CoverLetterTone, CoverLetterLength } from '../types';
+import type { CoverLetter, CoverLetterTone, CoverLetterLength, ResumeFormData } from '../types';
+import ResumeTemplateSwitcher from '../components/templates/ResumeTemplateSwitcher';
+import type { TemplateId } from '../components/templates/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -398,6 +400,7 @@ export default function CoverLetterPage() {
     uploadedResumeFilePath,
     isParsing,
     parseError,
+    extractedContactInfo,
     startNew,
     selectLetter,
     loadLetter,
@@ -430,14 +433,17 @@ export default function CoverLetterPage() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [activeEditor, setActiveEditor] = useState<Editor | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const isImprovingRef = useRef(false);
   const [whyThisCompany, setWhyThisCompany] = useState('');
   const [achievementToHighlight, setAchievementToHighlight] = useState('');
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showImproveConfirm, setShowImproveConfirm] = useState(false);
 
-  // Resume preview toggle (for uploaded resumes)
+  // Resume preview toggle
   const [showResumePreview, setShowResumePreview] = useState(false);
+  const [resumePreviewData, setResumePreviewData] = useState<{ formData: ResumeFormData; templateId: string } | null>(null);
+  const [isLoadingResumePreview, setIsLoadingResumePreview] = useState(false);
 
   // Editor state
   const [editorHtml, setEditorHtml] = useState('');
@@ -460,6 +466,21 @@ export default function CoverLetterPage() {
         setResumeContactInfo({ email: fd.email ?? '', phone: fd.phone ?? '', address: addr });
       })
       .catch(() => {});
+  }, [selectedResumeId]);
+
+  // When AI extraction returns contact info (upload mode), fill in any missing fields
+  useEffect(() => {
+    if (!extractedContactInfo) return;
+    setResumeContactInfo(prev => ({
+      email: prev.email || extractedContactInfo.email || '',
+      phone: prev.phone || extractedContactInfo.phone || '',
+      address: prev.address || [extractedContactInfo.city, extractedContactInfo.country].filter(Boolean).join(', '),
+    }));
+  }, [extractedContactInfo]);
+
+  // Reset built-resume preview data when a different resume is selected
+  useEffect(() => {
+    setResumePreviewData(null);
   }, [selectedResumeId]);
 
   // Deep-link: ?id=<cover_letter_id> — jump straight to editor with that letter loaded
@@ -506,11 +527,37 @@ export default function CoverLetterPage() {
     }
   }, [uploadedResumeId, resumeInputMode]);
 
+  // Auto-close refine panel on successful improve (keep open on error so user can retry)
+  useEffect(() => {
+    if (!isImprovingRef.current) return;
+    if (progressStep === 'done') {
+      isImprovingRef.current = false;
+      setShowRefinePanel(false);
+    } else if (progressStep === 'error') {
+      isImprovingRef.current = false;
+    }
+  }, [progressStep]);
+
   // Determine the file_path for the currently selected resume (for preview toggle)
   const selectedResumeFilePath: string | null =
     resumes.find((r: any) => r.id === selectedResumeId)?.file_path ||
     (resumeInputMode === 'upload' ? uploadedResumeFilePath : null) ||
     null;
+
+  // Fetch built resume template data when preview is opened (no file_path = built resume)
+  useEffect(() => {
+    if (!showResumePreview || selectedResumeFilePath || !selectedResumeId || resumePreviewData) return;
+    setIsLoadingResumePreview(true);
+    getResume(selectedResumeId)
+      .then((data) => {
+        const resume = data.resume ?? data;
+        if (resume?.form_data && resume?.template_id) {
+          setResumePreviewData({ formData: resume.form_data as ResumeFormData, templateId: resume.template_id });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingResumePreview(false));
+  }, [showResumePreview, selectedResumeId, selectedResumeFilePath, resumePreviewData]);
 
   const buildPayload = useCallback(() => ({
     resumeId: resumeInputMode === 'existing' ? selectedResumeId : undefined,
@@ -661,6 +708,7 @@ export default function CoverLetterPage() {
   const doImprove = () => {
     setShowImproveConfirm(false);
     if (!activeLetter?.id) return;
+    isImprovingRef.current = true;
     improve(activeLetter.id, whyThisCompany || undefined, achievementToHighlight || undefined);
   };
 
@@ -830,8 +878,8 @@ Nice to have:
                 </button>
               </div>
 
-              {/* ── Resume PDF Preview (replaces Job Settings when active) ─── */}
-              {showResumePreview && selectedResumeId && selectedResumeFilePath ? (
+              {/* ── Resume Preview (replaces Job Settings when active) ─── */}
+              {showResumePreview && selectedResumeId && (selectedResumeFilePath || resumePreviewData || isLoadingResumePreview) ? (
                 <div className="flex flex-col flex-1 min-h-0">
                   <div className="flex items-center justify-between py-2 border-b border-border/50 shrink-0">
                     <span className="text-sm font-semibold text-foreground">Resume Preview</span>
@@ -843,11 +891,25 @@ Nice to have:
                       <EyeOff size={12} /> Hide
                     </button>
                   </div>
-                  <iframe
-                    src={`/api/resume/${selectedResumeId}/file`}
-                    className="flex-1 w-full border-0"
-                    title="Resume Preview"
-                  />
+                  {selectedResumeFilePath ? (
+                    <iframe
+                      src={`/api/resume/${selectedResumeId}/file`}
+                      className="flex-1 w-full border-0"
+                      title="Resume Preview"
+                    />
+                  ) : isLoadingResumePreview ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                    </div>
+                  ) : resumePreviewData ? (
+                    <div className="flex-1 overflow-auto bg-neutral-100 p-4">
+                      <ResumeTemplateSwitcher
+                        templateId={resumePreviewData.templateId as TemplateId}
+                        data={resumePreviewData.formData}
+                        isPreview={true}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : (
               <>
@@ -923,7 +985,7 @@ Nice to have:
                       <p className="text-muted-foreground text-xs">Tell us about the role to generate your letter.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {selectedResumeFilePath && (
+                      {selectedResumeId && (
                         <button
                           type="button"
                           onClick={() => setShowResumePreview(true)}
@@ -1317,6 +1379,7 @@ Nice to have:
                     {showLetter && selectedTemplate === 'bold_architect' && (
                       <div className="w-full max-w-[850px] flex flex-col z-10 pb-16 px-4 md:px-8 py-8">
                         <BoldArchitectTemplate
+                          fullName={fullName}
                           jobTitle={jobTitle}
                           email={resumeContactInfo.email}
                           phone={resumeContactInfo.phone}

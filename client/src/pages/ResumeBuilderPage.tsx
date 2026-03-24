@@ -158,7 +158,7 @@ const initialFormData: ResumeFormData = {
   skills: {
     technical: [],
     soft: [],
-    languages: [{ language: '', proficiency: 'basic' }],
+    languages: [],
   },
   professionalSummary: '',
   certifications: '',
@@ -188,6 +188,7 @@ export default function ResumeBuilderPage() {
   const [stepErrors, setStepErrors] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [hasEverFinished, setHasEverFinished] = useState(false);
 
   // Skills auto-generation state
   const [skillsGenerated, setSkillsGenerated] = useState(false);
@@ -366,6 +367,7 @@ export default function ResumeBuilderPage() {
       return;
     }
     setIsFinished(true);
+    setHasEverFinished(true);
     setIsLeftPanelOpen(false);
   };
 
@@ -463,9 +465,10 @@ export default function ResumeBuilderPage() {
     }
   };
 
-  // Auto-generate skills when entering Skills step
+  // Auto-generate skills as soon as user leaves Personal Info (step 0 → 1+),
+  // so results are ready before they reach the Skills step (step 3)
   useEffect(() => {
-    if (currentStep === 3) {
+    if (currentStep >= 1) {
       const roleChanged = formData.targetRole !== lastGeneratedRole;
       const industryChanged = formData.targetIndustry !== lastGeneratedIndustry;
       if (!skillsGenerated || roleChanged || industryChanged) {
@@ -825,8 +828,8 @@ export default function ResumeBuilderPage() {
           {/* Divider */}
           <div className="w-px h-5 bg-border mx-1" />
 
-          {/* Save Resume — only shown after Finish & Preview */}
-          {isFinished && (
+          {/* Save Resume — shown after Finish & Preview, and persists during editing */}
+          {(isFinished || hasEverFinished) && (
             <>
               <button
                 type="button"

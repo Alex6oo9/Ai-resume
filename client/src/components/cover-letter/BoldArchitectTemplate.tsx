@@ -8,6 +8,7 @@ interface EditorPanelProps {
 
 // Forward-declared — passed in as a prop to avoid circular imports
 interface BoldArchitectTemplateProps {
+  fullName: string;
   jobTitle: string;
   email: string;
   phone: string;
@@ -22,6 +23,7 @@ interface BoldArchitectTemplateProps {
 }
 
 export default function BoldArchitectTemplate({
+  fullName,
   jobTitle,
   email,
   phone,
@@ -35,17 +37,24 @@ export default function BoldArchitectTemplate({
   EditorPanel,
 }: BoldArchitectTemplateProps) {
   return (
-    <div className="bg-white text-black w-full min-h-[1056px] shadow-xl ring-1 ring-black/5 rounded-sm flex flex-col pt-[72px] pb-[72px] px-[80px] font-sans text-[15px] leading-[1.7] relative">
+    <div className="bg-white text-black w-full min-h-[1056px] shadow-xl ring-1 ring-black/5 rounded-sm flex flex-col py-[48px] px-[64px] font-sans text-[14.5px] leading-[1.65] relative">
 
       {/* ================= HEADER SECTION ================= */}
-      <div className="flex flex-col items-center mb-6 w-full">
-        {/* Massive, bold, wide-tracked Job Title */}
-        <h1 className="text-6xl tracking-[0.1em] mb-6 font-bold uppercase text-center w-full">
-          {jobTitle || 'JOB TITLE'}
+      <div className="flex flex-col items-center w-full">
+        {/* Full Name — primary identity */}
+        <h1 className="text-[54px] tracking-[0.15em] mb-1 font-normal uppercase text-center w-full">
+          {fullName || 'YOUR NAME'}
         </h1>
 
+        {/* Job Title — subtitle */}
+        {jobTitle && (
+          <p className="text-[15px] tracking-[0.12em] uppercase text-center text-gray-500 mb-3 w-full">
+            {jobTitle}
+          </p>
+        )}
+
         {/* Horizontal Contact Info with Icons */}
-        <div className="flex flex-wrap items-center justify-center gap-6 text-sm w-full font-medium">
+        <div className="flex items-center justify-center space-x-6 text-[13px] font-medium pb-4 w-full">
           {email && (
             <div className="flex items-center gap-2">
               <Mail size={16} className="fill-black text-white shrink-0" />
@@ -67,11 +76,11 @@ export default function BoldArchitectTemplate({
         </div>
       </div>
 
-      {/* ================= THICK DIVIDER LINE ================= */}
-      <div className="w-full h-[2px] bg-black mb-10 shrink-0" />
+      {/* ================= TOP DIVIDER ================= */}
+      <hr className="border-t-[1.5px] border-black mb-10" />
 
       {/* ================= DATE & RECIPIENT BLOCK ================= */}
-      <div className="mb-8 font-normal text-[15px]">
+      <div className="mb-8 font-normal">
         <div className="mb-8">
           {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
         </div>
@@ -89,8 +98,13 @@ export default function BoldArchitectTemplate({
         <EditorPanel content={editorHtml} onChange={onEditorChange} onEditorReady={onEditorReady} />
       </div>
 
+      {/* ================= BOTTOM DIVIDER ================= */}
+      <div className="mt-auto pt-8">
+        <hr className="border-t-[1.5px] border-black mb-4" />
+      </div>
+
       {/* ================= FOOTER: word count + keyword badges ================= */}
-      <div className="mt-8 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
           {editorHtml.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length} words
         </span>

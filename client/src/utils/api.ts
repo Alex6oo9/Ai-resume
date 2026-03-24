@@ -270,7 +270,11 @@ export async function saveCoverLetter(id: string, content: string) {
   return response.data;
 }
 
-export async function extractKeywords(payload: Record<string, unknown>, jobDescription?: string) {
+export async function extractKeywords(payload: Record<string, unknown>, jobDescription?: string): Promise<{
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  contactInfo?: { fullName: string | null; email: string | null; phone: string | null; city: string | null; country: string | null } | null;
+}> {
   const response = await api.post('/cover-letter/extract-keywords', { ...payload, jobDescription }, { timeout: 60000 });
   return response.data;
 }

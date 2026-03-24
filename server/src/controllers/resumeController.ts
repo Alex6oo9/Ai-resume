@@ -5,7 +5,7 @@ import pool from '../config/db';
 import cloudinary from '../config/cloudinary';
 import { extractTextFromPDF } from '../services/parser/pdfParser';
 import { analyzeResume } from '../services/ai/resumeAnalyzer';
-import { generateResume } from '../services/ai/resumeGenerator';
+import { formatFormDataForPrompt } from '../services/ai/resumeGenerator';
 import { extractResumeStructure } from '../services/ai/resumeStructureExtractor';
 import { sanitizePromptInput } from '../utils/sanitizePromptInput';
 
@@ -169,47 +169,35 @@ export const buildResume = async (
     const userId = (req.user as any).id;
     const rawFormData = req.body;
 
-    // Transform form data to match backend expectations
     const formData = transformFormData(rawFormData);
-
-    // Generate resume via AI
-    const { resumeText, matchPercentage, aiAnalysis } =
-      await generateResume(formData);
-
-    const templateId = rawFormData.templateId || 'modern_minimal';
+    const parsedText = formatFormDataForPrompt(formData);
+    const templateId = rawFormData.templateId || 'modern';
     const resumeId = rawFormData.resumeId as string | undefined;
 
     if (resumeId) {
-      // Verify ownership
-      const existing = await pool.query(
-        'SELECT id FROM resumes WHERE id = $1 AND user_id = $2',
-        [resumeId, userId]
+      // Update existing resume — preserve existing analysis columns
+      const result = await pool.query(
+        `UPDATE resumes
+         SET parsed_text=$1, target_role=$2, target_country=$3, target_city=$4,
+             template_id=$5, updated_at=NOW()
+         WHERE id=$6 AND user_id=$7
+         RETURNING *`,
+        [
+          parsedText,
+          formData.targetRole,
+          formData.targetCountry,
+          formData.targetCity || null,
+          templateId,
+          resumeId,
+          userId,
+        ]
       );
-      if (existing.rows.length === 0) {
+
+      if (result.rowCount === 0) {
         res.status(404).json({ error: 'Resume not found' });
         return;
       }
 
-      // Update existing resume
-      const result = await pool.query(
-        `UPDATE resumes
-         SET parsed_text=$1, target_role=$2, target_country=$3, target_city=$4,
-             match_percentage=$5, ai_analysis=$6, template_id=$7, updated_at=NOW()
-         WHERE id=$8
-         RETURNING *`,
-        [
-          resumeText,
-          formData.targetRole,
-          formData.targetCountry,
-          formData.targetCity || null,
-          matchPercentage,
-          JSON.stringify(aiAnalysis),
-          templateId,
-          resumeId,
-        ]
-      );
-
-      // Upsert resume_data
       await pool.query(
         `INSERT INTO resume_data (resume_id, form_data) VALUES ($1, $2)
          ON CONFLICT (resume_id) DO UPDATE SET form_data = $2`,
@@ -218,29 +206,25 @@ export const buildResume = async (
 
       res.status(200).json({ resume: result.rows[0] });
     } else {
-      // Insert new resume
+      // Insert new resume — analysis columns default to NULL
       const result = await pool.query(
-        `INSERT INTO resumes (user_id, parsed_text, target_role, target_country, target_city, match_percentage, ai_analysis, template_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO resumes (user_id, parsed_text, target_role, target_country, target_city, template_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
         [
           userId,
-          resumeText,
+          parsedText,
           formData.targetRole,
           formData.targetCountry,
           formData.targetCity || null,
-          matchPercentage,
-          JSON.stringify(aiAnalysis),
           templateId,
         ]
       );
 
       const resume = result.rows[0];
 
-      // Store form data in resume_data table (use raw data to preserve frontend structure)
       await pool.query(
-        `INSERT INTO resume_data (resume_id, form_data)
-         VALUES ($1, $2)`,
+        `INSERT INTO resume_data (resume_id, form_data) VALUES ($1, $2)`,
         [resume.id, JSON.stringify(rawFormData)]
       );
 
