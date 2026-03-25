@@ -62,9 +62,10 @@ export function formatFormDataForPrompt(data: ResumeFormInput): string {
   if (data.portfolioUrl) lines.push(`Portfolio: ${data.portfolioUrl}`);
   lines.push(`Location: ${data.city}, ${data.country}`);
   lines.push(`Target Role: ${data.targetRole}`);
-  lines.push(
-    `Target Location: ${data.targetCity ? `${data.targetCity}, ` : ''}${data.targetCountry}`
-  );
+  if (data.targetCountry?.trim() || data.targetCity?.trim()) {
+    const loc = [data.targetCity, data.targetCountry].filter(Boolean).join(', ');
+    lines.push(`Target Location: ${loc}`);
+  }
   lines.push(`Professional Summary: ${data.professionalSummary}`);
 
   lines.push('\nEDUCATION:');

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, FileText, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Mail } from 'lucide-react';
 import { getResume } from '../utils/api';
 
 export default function UploadedResumeViewPage() {
@@ -59,11 +59,12 @@ export default function UploadedResumeViewPage() {
         {/* Right: analysis + download */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            onClick={() => navigate(`/resume/${id}`)}
-            className="flex items-center gap-2 bg-secondary text-secondary-foreground rounded-lg px-3 py-1.5 text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
+            onClick={() => navigate(`/cover-letter/new?resume_id=${id}`)}
+            className="flex items-center gap-2 bg-teal-600 text-white rounded-lg px-3 py-1.5 text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
           >
-            <BarChart2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Analysis</span>
+            <Mail className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Create Cover Letter</span>
+            <span className="sm:hidden">Cover Letter</span>
           </button>
 
           <a

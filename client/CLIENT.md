@@ -38,6 +38,13 @@ Axios interceptors dispatch DOM events consumed by `ConnectivityContext`:
 - Client checks auth status via `/auth/me` on mount
 - Login returns 403 if email not verified (with resend option)
 
+### Google OAuth
+- "Sign in with Google" / "Sign up with Google" button on Login and Register pages
+- Implemented as a plain `<a href="/api/auth/google">` (browser navigation, not an axios call)
+- After Google authenticates the user, server redirects to `/dashboard`
+- `AuthContext` restores session state via `GET /auth/me` as normal — no special client handling needed
+- Component: `client/src/components/GoogleSignInButton.tsx` — accepts `mode="signin"` (default) or `mode="signup"`
+
 ### Auth State Management
 ```typescript
 // client/src/contexts/AuthContext.tsx
@@ -87,7 +94,7 @@ ThemeProvider
 - Listens to `server:recovered` event to show success toast and auto-dismiss
 
 ### Auth Pages
-- `/login` — supports `?verified=true` and `?reset=true` success banners
+- `/login` — supports `?verified=true`, `?reset=true` success banners, and `?error=oauth` failure banner (Google OAuth callback failed)
 - `/register` — includes optional name field, shows "check email" on success
 - `/verify-email?token=<hex>` — verifies email, links to login
 - `/forgot-password` — sends password reset email
@@ -187,6 +194,8 @@ interface AdditionalLink {
 - `POST /auth/login` — `{ email, password }` → `{ user: { id, email, name } }`
 - `POST /auth/logout` → `{ message }`
 - `GET /auth/me` → `{ user: { id, email, name } }` or 401
+- `GET /auth/google` — **browser navigation only** (not axios). Initiates Google OAuth; redirects to Google consent screen.
+- `GET /auth/google/callback` — handled server-side; redirects to `/dashboard` on success or `/login?error=oauth` on failure.
 
 ### Resume Management
 - `GET /resume` → `{ resumes: [{ id, target_role, target_country, target_city, match_percentage, ats_score, created_at }] }`

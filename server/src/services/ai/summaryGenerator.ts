@@ -7,7 +7,7 @@ import openai from '../../config/openai';
 export interface SummaryGenerationInput {
   targetRole: string;
   targetIndustry?: string;
-  targetCountry: string;
+  targetCountry?: string;
   education?: Array<{
     degree: string;
     field: string;
@@ -43,7 +43,7 @@ function extractContext(input: SummaryGenerationInput): string {
   if (input.targetIndustry) {
     lines.push(`Industry: ${input.targetIndustry}`);
   }
-  lines.push(`Location: ${input.targetCountry}`);
+  if (input.targetCountry?.trim()) lines.push(`Location: ${input.targetCountry}`);
 
   // Education (condensed)
   if (input.education && input.education.length > 0) {
@@ -124,10 +124,6 @@ export async function generateSummary(
   // Validation
   if (!input.targetRole?.trim()) {
     throw new Error('Target role is required');
-  }
-
-  if (!input.targetCountry?.trim()) {
-    throw new Error('Target country is required');
   }
 
   const context = extractContext(input);

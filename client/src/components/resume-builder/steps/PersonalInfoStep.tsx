@@ -263,7 +263,7 @@ export default function PersonalInfoStep({ data, onChange, photoSupported = true
               </Label>
               <Input
                 id="targetRole"
-                placeholder="e.g. Frontend Developer"
+                placeholder="e.g. Marketing Manager"
                 value={data.targetRole}
                 onChange={(e) => update('targetRole', e.target.value)}
                 className=""
@@ -272,7 +272,8 @@ export default function PersonalInfoStep({ data, onChange, photoSupported = true
 
             <div className="space-y-1.5">
               <Label className="">
-                Industry <span className="text-red-400 normal-case tracking-normal">*</span>
+                Industry
+                <span className="ml-1 normal-case tracking-normal font-normal text-muted-foreground/60">(optional)</span>
               </Label>
               <Select
                 value={data.targetIndustry}
@@ -291,32 +292,6 @@ export default function PersonalInfoStep({ data, onChange, photoSupported = true
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="">
-                Target Country <span className="text-red-400 normal-case tracking-normal">*</span>
-              </Label>
-              <Input
-                id="targetCountry"
-                placeholder="e.g. United States"
-                value={data.targetCountry}
-                onChange={(e) => update('targetCountry', e.target.value)}
-                className=""
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="">
-                Target City
-                <span className="ml-1 normal-case tracking-normal font-normal text-muted-foreground/60">(optional)</span>
-              </Label>
-              <Input
-                id="targetCity"
-                placeholder="e.g. San Francisco"
-                value={data.targetCity || ''}
-                onChange={(e) => update('targetCity', e.target.value)}
-                className=""
-              />
-            </div>
           </div>
         </div>
       </div>

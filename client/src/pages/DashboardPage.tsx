@@ -687,7 +687,7 @@ export default function DashboardPage() {
     ...resumes.map((r): UnifiedDoc => ({
       id: r.id,
       source: r.file_path !== null ? 'uploaded' : 'built',
-      title: r.target_role || 'Untitled Resume',
+      title: r.title || r.target_role || 'Untitled Resume',
       subtitle: new Date(r.created_at).toLocaleDateString(),
       score: r.match_percentage ?? null,
       created_at: r.created_at,
@@ -776,32 +776,44 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Box 2: Analyze PDF */}
-          <Link
-            to="/upload"
-            className="col-span-12 sm:col-span-6 lg:col-span-4 rounded-3xl border border-dashed border-border hover:border-primary/50 bg-muted/10 hover:bg-primary/5 flex flex-col items-center justify-center p-6 text-center group min-h-[180px] transition-all duration-200"
-          >
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background border border-border shadow-sm text-muted-foreground group-hover:text-primary transition-colors mb-4">
-              <Upload className="w-5 h-5" />
-            </div>
-            <h2 className="text-base font-semibold text-foreground mb-1">Analyze PDF</h2>
-            <p className="text-sm text-muted-foreground">Drop your existing resume to get an AI score</p>
-          </Link>
-
-          {/* Box 3: Cover Letters */}
+          {/* Box 2: Cover Letters */}
           <Link
             to="/cover-letter/new"
-            className="col-span-12 sm:col-span-6 lg:col-span-4 rounded-3xl border border-border bg-card p-6 shadow-sm hover:shadow-md flex flex-col justify-between group min-h-[180px] transition-all duration-200"
+            className="col-span-12 sm:col-span-6 lg:col-span-4 lg:row-span-2 rounded-3xl border border-border bg-card p-7 shadow-sm hover:shadow-xl hover:border-teal-400/40 flex flex-col justify-between group transition-all duration-200"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600">
-                <LayoutTemplate className="w-5 h-5" />
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-teal-500/10 text-teal-600">
+                  <LayoutTemplate className="w-5 h-5" />
+                </div>
+                <span className="bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs px-2.5 py-1 rounded-full font-medium border border-teal-200/50 dark:border-teal-800/50">Beta</span>
               </div>
-              <span className="bg-teal-500/10 text-teal-700 text-xs px-2 py-0.5 rounded-full font-medium">Beta</span>
+
+              <h2 className="text-xl font-bold text-foreground mb-2">Cover Letters</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-8">
+                Generate tailored, ATS-friendly cover letters in seconds using your resume and the job description.
+              </p>
+
+              <ul className="space-y-4">
+                {([
+                  [Sparkles, 'AI-powered personalization'],
+                  [FileText, 'Multiple tones & lengths'],
+                  [Mail, 'Keyword-optimized content'],
+                ] as [typeof Sparkles, string][]).map(([Icon, text], i) => (
+                  <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600">
+                      <Icon className="w-3.5 h-3.5" />
+                    </span>
+                    {text}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="mt-4">
-              <h2 className="text-base font-semibold text-foreground mb-1">Cover Letters</h2>
-              <p className="text-sm text-muted-foreground">Generate tailored cover letters in seconds</p>
+
+            <div className="mt-8 flex items-center gap-2 text-teal-600 font-semibold text-sm group-hover:gap-3 transition-all duration-200">
+              <Mail className="w-4 h-4" />
+              <span>Create Cover Letter</span>
+              <span className="ml-auto text-lg leading-none">→</span>
             </div>
           </Link>
         </div>

@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { resendVerification } from '../utils/api';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function RegisterPage() {
   const { register: onRegister } = useAuthContext();
@@ -159,6 +160,20 @@ export default function RegisterPage() {
             {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
+
+        <div className="mt-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-background px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
+          <div className="mt-4">
+            <GoogleSignInButton mode="signup" />
+          </div>
+        </div>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{' '}

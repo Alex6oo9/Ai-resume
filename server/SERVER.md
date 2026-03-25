@@ -98,6 +98,18 @@ Rate limited: 5 requests/hour.
 // 400 — invalid/expired token or password too short
 ```
 
+#### `GET /api/auth/google`
+Initiates Google OAuth flow. **Browser navigation only — not an axios call.**
+Requires user to not be authenticated (`isGuest` middleware — returns 400 if already logged in).
+Redirects to Google consent screen requesting `profile` + `email` scopes.
+
+#### `GET /api/auth/google/callback`
+OAuth callback URL. Google redirects here after user grants consent.
+- **Success**: regenerates session (prevents session fixation) → `req.login()` → redirects to `CLIENT_URL/dashboard`
+- **Failure**: redirects to `CLIENT_URL/login?error=oauth`
+OAuth users are created with `auth_provider='google'`, no password, and `is_email_verified=TRUE`.
+If a local account with the same email already exists, `google_id` is linked to that account.
+
 ---
 
 ### Resume Management (`/api/resume/*`)
@@ -512,7 +524,7 @@ languages = [{ name: "English", proficiency: "fluent" }]
 ## Database Schema
 
 ### users
-`id` UUID PK, `name` VARCHAR(255), `email` VARCHAR(255) UNIQUE, `password` VARCHAR(255), `is_email_verified` BOOLEAN DEFAULT FALSE, `created_at` TIMESTAMP
+`id` UUID PK, `name` VARCHAR(255), `email` VARCHAR(255) UNIQUE, `password_hash` VARCHAR(255) **nullable** (null for OAuth users), `is_email_verified` BOOLEAN DEFAULT FALSE, `google_id` VARCHAR(255) UNIQUE nullable, `auth_provider` VARCHAR(50) DEFAULT `'local'` (`'local'` | `'google'`), `created_at` TIMESTAMP
 
 ### resumes
 `id` UUID PK, `user_id` UUID FK→users, `file_path` TEXT nullable (Path A only), `parsed_text` TEXT nullable, `target_role` VARCHAR(255), `target_country` VARCHAR(100), `target_city` VARCHAR(100) nullable, `job_description` TEXT nullable, `match_percentage` INTEGER nullable, `ats_score` INTEGER nullable, `ai_analysis` JSONB nullable, `template_id` VARCHAR(50) DEFAULT `'modern'`, `status` VARCHAR(50), `created_with_live_preview` BOOLEAN, `created_at`, `updated_at`
@@ -589,6 +601,8 @@ Tracks which numbered migrations have been run (001–029).
 | 027 | alter_cover_letters_multiple | Drops `UNIQUE(resume_id)` constraint; adds `job_title VARCHAR(255)` column; new index on `(resume_id, created_at DESC)` |
 | 028 | allow_null_resume_id_cover_letters | Makes `resume_id` nullable (enables standalone letters not attached to a resume) |
 | 029 | update_template_thumbnails | Sets `thumbnail_url = '/thumbnails/{name}.png'` for all 7 active templates |
+| 030 | add_job_description_to_cover_letters | Adds `job_description` column to cover_letters |
+| 031 | add_google_oauth | Adds `google_id` (unique, nullable) + `auth_provider` columns to users; makes `password_hash` nullable |
 
 ---
 
@@ -653,6 +667,10 @@ OPENAI_API_KEY=sk-...
 PORT=5000
 CLIENT_URL=http://localhost:5173
 NODE_ENV=development
+# Google OAuth (required for Sign in with Google)
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 ```
 
 ---

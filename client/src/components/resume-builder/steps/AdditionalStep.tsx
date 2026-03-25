@@ -88,7 +88,7 @@ export default function AdditionalStep({ data, onChange }: Props) {
                   <div className="space-y-1.5">
                     <Label>Your Role</Label>
                     <Input
-                      placeholder="e.g. Lead Developer"
+                      placeholder="e.g. Project Lead"
                       value={proj.role}
                       onChange={(e) => updateProject(index, 'role', e.target.value)}
                     />
@@ -97,7 +97,7 @@ export default function AdditionalStep({ data, onChange }: Props) {
                   <div className="space-y-1.5">
                     <Label>Technologies</Label>
                     <Input
-                      placeholder="e.g. React, Node.js, PostgreSQL"
+                      placeholder="e.g. Excel, Tableau, Salesforce"
                       value={proj.technologies}
                       onChange={(e) => updateProject(index, 'technologies', e.target.value)}
                     />
@@ -109,7 +109,7 @@ export default function AdditionalStep({ data, onChange }: Props) {
                       <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
                         className="pl-9"
-                        placeholder="github.com/..."
+                        placeholder="https://yourwebsite.com/project"
                         value={proj.link || ''}
                         onChange={(e) => updateProject(index, 'link', e.target.value)}
                       />
@@ -152,7 +152,7 @@ export default function AdditionalStep({ data, onChange }: Props) {
           id="certifications"
           value={data.certifications || ''}
           onChange={(val) => onChange({ ...data, certifications: val })}
-          placeholder="e.g. AWS Cloud Practitioner, Google Analytics Certified..."
+          placeholder="e.g. PMP, Google Analytics Certified, HubSpot Marketing..."
           minHeight="100px"
         />
       </section>
@@ -170,7 +170,7 @@ export default function AdditionalStep({ data, onChange }: Props) {
           id="extracurriculars"
           value={data.extracurriculars || ''}
           onChange={(val) => onChange({ ...data, extracurriculars: val })}
-          placeholder="e.g. President of Computer Science Club..."
+          placeholder="e.g. President of Marketing Association, Volunteer Coordinator..."
           minHeight="100px"
         />
       </section>

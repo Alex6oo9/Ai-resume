@@ -33,6 +33,8 @@ export default function SkillsStep({
   onRegenerate: onRegenerateSkills,
 }: Props) {
   const [skillInputs, setSkillInputs] = useState<Record<number, string>>({});
+  const [softSkillInput, setSoftSkillInput] = useState('');
+  const [softOpen, setSoftOpen] = useState(true);
   const [langInput, setLangInput] = useState('');
   const [langProficiency, setLangProficiency] = useState<LanguageSkill['proficiency']>('fluent');
 
@@ -126,6 +128,18 @@ export default function SkillsStep({
     });
   };
 
+  const addSoftSkill = () => {
+    const trimmed = softSkillInput.trim();
+    if (!trimmed) return;
+    if (data.skills.soft.some(s => s.toLowerCase() === trimmed.toLowerCase())) return;
+    onChange({ ...data, skills: { ...data.skills, soft: [...data.skills.soft, trimmed] } });
+    setSoftSkillInput('');
+  };
+
+  const removeSoftSkill = (index: number) => {
+    onChange({ ...data, skills: { ...data.skills, soft: data.skills.soft.filter((_, i) => i !== index) } });
+  };
+
   const addLanguage = () => {
     const trimmed = langInput.trim();
     if (!trimmed) return;
@@ -199,7 +213,7 @@ export default function SkillsStep({
         </Button>
       </div>
 
-      {/* Category Cards */}
+      {/* Category Cards + Soft Skills Card */}
       <div className="flex flex-col gap-6">
         <AnimatePresence>
           {categories.map((cat, catIndex) => {
@@ -252,7 +266,6 @@ export default function SkillsStep({
                 {/* Accordion Content */}
                 {isOpen && (
                   <div className="px-5 pb-5 pt-2 grid grid-cols-1 gap-6">
-                    {/* Skill Tags + Input */}
                     <div>
                       <div className="flex flex-wrap gap-2 mt-1 min-h-[40px] items-start">
                         {cat.items.length === 0 && (
@@ -289,7 +302,7 @@ export default function SkillsStep({
                       <div className="relative mt-3">
                         <Input
                           className="bg-background pr-20"
-                          placeholder="Add a skill (e.g. React, Python) and press Enter..."
+                          placeholder="Add a skill (e.g. Excel, Project Management) and press Enter..."
                           value={skillInputs[catIndex] || ''}
                           onChange={(e) => setSkillInputs({ ...skillInputs, [catIndex]: e.target.value })}
                           onKeyDown={(e) => {
@@ -320,6 +333,90 @@ export default function SkillsStep({
             );
           })}
         </AnimatePresence>
+
+        {/* Soft Skills Card — same style as technical categories, fixed name, no delete */}
+        <motion.div
+          key="soft-skills"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-200 hover:border-primary/30 hover:shadow-md"
+        >
+          <button
+            type="button"
+            onClick={() => setSoftOpen(prev => !prev)}
+            className="flex w-full items-center justify-between py-4 px-5 font-medium transition-all hover:bg-muted/30"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <GripVertical className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+              <span className="text-base font-semibold px-2 py-0.5">Soft Skills</span>
+              <span className="shrink-0 inline-flex items-center justify-center rounded-full bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 min-w-[1.25rem]">
+                {data.skills.soft.length}
+              </span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 shrink-0 ml-2 ${softOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {softOpen && (
+            <div className="px-5 pb-5 pt-2 grid grid-cols-1 gap-6">
+              <div>
+                <div className="flex flex-wrap gap-2 mt-1 min-h-[40px] items-start">
+                  {data.skills.soft.length === 0 && (
+                    <span className="text-sm text-muted-foreground italic px-2 py-1">
+                      No skills added yet — type below and press Enter or Add.
+                    </span>
+                  )}
+                  <AnimatePresence>
+                    {data.skills.soft.map((skill, index) => (
+                      <motion.span
+                        key={`soft-${skill}-${index}`}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        layout
+                        className="group/skill flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                        {skill}
+                        <button
+                          type="button"
+                          onClick={() => removeSoftSkill(index)}
+                          className="h-4 w-4 rounded-full inline-flex items-center justify-center opacity-50 group-hover/skill:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all cursor-pointer"
+                          aria-label={`Remove ${skill}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                <div className="relative mt-3">
+                  <Input
+                    className="bg-background pr-20"
+                    placeholder="Add a skill (e.g. Communication, Teamwork) and press Enter..."
+                    value={softSkillInput}
+                    onChange={(e) => setSoftSkillInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSoftSkill();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-3 gap-1.5"
+                    onClick={addSoftSkill}
+                    disabled={!softSkillInput.trim()}
+                  >
+                    <Plus className="w-3 h-3" /> Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
       </div>
 
       {categories.length < MAX_CATEGORIES && (

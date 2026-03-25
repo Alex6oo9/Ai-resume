@@ -76,7 +76,7 @@ const router = createBrowserRouter([
         element: <ProtectedLayout />,
         children: [
           { path: '/dashboard', element: <DashboardPage /> },
-          { path: '/upload', element: <ResumeUploadPage /> },
+          { path: '/upload', element: <Navigate to="/dashboard" replace /> },
           { path: '/build', element: <ResumeBuilderPage /> },
           { path: '/build/:id', element: <ResumeBuilderPage /> },
           { path: '/resume/:id', element: <ResumeAnalysisPage /> },

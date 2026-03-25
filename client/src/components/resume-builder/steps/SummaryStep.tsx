@@ -107,7 +107,7 @@ export default function SummaryStep({ data, onChange }: Props) {
         </Label>
         <Textarea
           id="professionalSummary"
-          placeholder="e.g. Results-driven Software Engineer with 5+ years of experience building scalable web applications..."
+          placeholder="e.g. Results-driven Marketing Coordinator with 3+ years of experience driving brand growth and customer engagement..."
           className="min-h-[200px] resize-y p-4 leading-relaxed"
           value={summary}
           onChange={(e) => handleChange(e.target.value)}

@@ -275,7 +275,7 @@ function SelectionStep({
                   <option value="">Select a resume...</option>
                   {resumes.map((r: any) => (
                     <option key={r.id} value={r.id}>
-                      {r.target_role || 'Untitled Resume'} — {formatRelativeDate(r.created_at)}
+                      {r.title || r.target_role || 'Untitled Resume'} — {formatRelativeDate(r.created_at)}
                     </option>
                   ))}
                 </select>
@@ -489,6 +489,16 @@ export default function CoverLetterPage() {
     if (!id) return;
     setStep('editor');
     loadLetter(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-link: ?resume_id=<resume_id> — pre-select resume and jump to editor
+  useEffect(() => {
+    const resumeId = searchParams.get('resume_id');
+    if (!resumeId) return;
+    setSelectedResumeId(resumeId);
+    setResumeInputMode('existing');
+    setStep('editor');
+    setShowResumePreview(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync editor content when active letter changes or content is updated (improve/regenerate/save)
@@ -994,13 +1004,15 @@ Nice to have:
                           <Eye size={12} /> Resume
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={fillDemo}
-                        className="text-violet-600 hover:text-violet-700 bg-violet-500/10 hover:bg-violet-500/20 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shrink-0"
-                      >
-                        <Wand2 size={12} /> Demo
-                      </button>
+                      {false && (
+                        <button
+                          type="button"
+                          onClick={fillDemo}
+                          className="text-violet-600 hover:text-violet-700 bg-violet-500/10 hover:bg-violet-500/20 px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shrink-0"
+                        >
+                          <Wand2 size={12} /> Demo
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setIsLeftJDExpanded(true)}

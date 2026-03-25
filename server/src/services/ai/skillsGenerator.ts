@@ -92,18 +92,19 @@ async function storeInCache(
  */
 async function generateSkillsFromAI(
   targetRole: string,
-  targetIndustry: string
+  targetIndustry?: string
 ): Promise<GeneratedSkills> {
-  const prompt = `Generate a focused technical skills list for a fresh graduate applying for a "${targetRole}" position in the ${targetIndustry} industry.
+  const industryContext = targetIndustry?.trim() ? ` in the ${targetIndustry} industry` : '';
+  const prompt = `Generate a focused technical skills list for a fresh graduate applying for a "${targetRole}" position${industryContext}.
 
 Requirements:
 1. Technical Skills: Provide 2-3 categories with exactly 4-5 highly relevant skills each (max 15 total)
    - Categories must be specific to ${targetRole}
    - Skills should be concrete tools, technologies, or methodologies
-   - Be specific (e.g., "Python" not "Programming")
+   - Be specific (e.g., "Excel" not "Office Software")
    - Prioritize the most in-demand skills for this role
 
-2. Soft Skills: Provide 2-3 soft skills that are SPECIFICALLY valued for ${targetRole} in ${targetIndustry}
+2. Soft Skills: Provide 2-3 soft skills that are SPECIFICALLY valued for ${targetRole}${industryContext}
    - EXCLUDE these already-covered skills: Communication, Teamwork, Problem Solving, Leadership,
      Time Management, Adaptability, Critical Thinking, Creativity, Analytical Thinking, Attention to Detail
    - Only include role-specific soft skills not in the exclusion list above
@@ -188,18 +189,14 @@ Respond with ONLY valid JSON in this exact format:
  */
 export async function generateSkills(
   targetRole: string,
-  targetIndustry: string
+  targetIndustry?: string
 ): Promise<GeneratedSkills> {
   if (!targetRole?.trim()) {
     throw new Error('Target role is required');
   }
 
-  if (!targetIndustry?.trim()) {
-    throw new Error('Target industry is required');
-  }
-
   // Check cache first
-  const cacheKey = getCacheKey(targetRole, targetIndustry);
+  const cacheKey = getCacheKey(targetRole, targetIndustry ?? '');
   const cachedSkills = await getFromCache(cacheKey);
 
   if (cachedSkills) {

@@ -55,80 +55,77 @@ const VALID_TEMPLATE_IDS: TemplateId[] = [
 ];
 
 const DEMO_FORM_DATA: ResumeFormData = {
-  fullName: 'Alex Johnson',
-  email: 'alex.johnson@email.com',
+  fullName: 'Jordan Lee',
+  email: 'jordan.lee@email.com',
   phone: '+1 (555) 234-5678',
-  city: 'San Francisco',
+  city: 'New York',
   country: 'United States',
-  linkedinUrl: 'https://linkedin.com/in/alexjohnson',
-  portfolioUrl: 'https://alexjohnson.dev',
-  additionalLinks: [
-    { id: 'demo-1', label: 'GitHub', url: 'https://github.com/alexjohnson' },
-  ],
-  targetRole: 'Software Engineer',
-  targetIndustry: 'Technology',
+  linkedinUrl: 'https://linkedin.com/in/jordanlee',
+  portfolioUrl: 'https://jordanlee.com',
+  additionalLinks: [],
+  targetRole: 'Marketing Coordinator',
+  targetIndustry: 'Marketing',
   targetCountry: 'United States',
-  targetCity: 'San Francisco',
+  targetCity: 'New York',
   education: [
     {
       degreeType: "Bachelor's",
-      major: 'Computer Science',
-      university: 'University of California, Berkeley',
+      major: 'Business Administration',
+      university: 'State University of New York',
       graduationDate: 'May 2024',
-      gpa: '3.8',
-      relevantCoursework: 'Data Structures, Algorithms, Web Development, Machine Learning, Database Systems',
-      honors: "Dean's List, Cum Laude",
+      gpa: '3.7',
+      relevantCoursework: 'Marketing Strategy, Consumer Behaviour, Financial Accounting, Business Analytics',
+      honors: "Dean's List",
     },
   ],
   experience: [
     {
       type: 'internship',
-      company: 'Google',
-      role: 'Software Engineering Intern',
+      company: 'Bright Media Group',
+      role: 'Marketing Intern',
       duration: 'Jun 2023 – Aug 2023',
-      responsibilities: '• Developed a real-time data pipeline using Apache Kafka reducing latency by 40%\n• Built internal tooling dashboard with React and TypeScript used by 200+ engineers\n• Collaborated with senior engineers on core search ranking algorithm improvements',
-      industry: 'Technology',
+      responsibilities: '• Managed social media accounts across Instagram, LinkedIn and Twitter, growing combined following by 25%\n• Assisted in planning and executing two product launch campaigns reaching 50,000+ impressions\n• Analysed campaign performance using Google Analytics and prepared weekly reports for the marketing team',
+      industry: 'Marketing',
     },
     {
       type: 'part-time',
-      company: 'UC Berkeley Research Lab',
-      role: 'Undergraduate Research Assistant',
+      company: 'Campus Career Centre',
+      role: 'Student Brand Ambassador',
       duration: 'Sep 2022 – May 2023',
-      responsibilities: '• Implemented machine learning models in Python achieving 92% classification accuracy\n• Published findings contributing to a paper accepted at NeurIPS workshop\n• Maintained research codebase and wrote comprehensive documentation',
+      responsibilities: '• Represented the university at three regional recruitment fairs, engaging with 500+ prospective students\n• Coordinated on-campus promotional events and tracked attendance metrics\n• Created promotional content that increased event attendance by 30%',
       industry: 'Education',
     },
   ],
   projects: [
     {
-      name: 'SmartBudget — Personal Finance App',
-      description: 'Full-stack web application for tracking expenses and visualizing spending patterns with AI-powered budget recommendations.',
-      technologies: 'React, Node.js, PostgreSQL, OpenAI API, Chart.js',
-      role: 'Solo Developer',
-      link: 'https://github.com/alexjohnson/smartbudget',
+      name: 'Social Media Rebrand Campaign',
+      description: 'Led a full rebranding of a student-run nonprofit\'s social media presence, developing a new content strategy and visual identity.',
+      technologies: 'Canva, Hootsuite, Google Analytics',
+      role: 'Campaign Lead',
+      link: '',
     },
     {
-      name: 'Campus Connect — Event Platform',
-      description: 'Mobile-first platform for university students to discover and RSVP to campus events, with real-time notifications.',
-      technologies: 'React Native, Firebase, Expo, Node.js',
-      role: 'Lead Frontend Developer',
-      link: 'https://github.com/alexjohnson/campusconnect',
+      name: 'Consumer Behaviour Research Study',
+      description: 'Conducted a survey-based study on purchasing decisions among Gen Z consumers, presenting findings to a panel of faculty and industry professionals.',
+      technologies: 'Excel, SPSS, PowerPoint',
+      role: 'Lead Researcher',
+      link: '',
     },
   ],
   skills: {
     technical: [
-      { category: 'Languages', items: ['JavaScript', 'TypeScript', 'Python', 'Java', 'SQL'] },
-      { category: 'Frontend', items: ['React', 'Next.js', 'TailwindCSS', 'HTML/CSS'] },
-      { category: 'Backend & Cloud', items: ['Node.js', 'Express', 'PostgreSQL', 'AWS', 'Docker'] },
+      { category: 'Tools & Software', items: ['Excel', 'PowerPoint', 'Google Analytics', 'Canva', 'Hootsuite'] },
+      { category: 'Marketing', items: ['SEO', 'Content Writing', 'Social Media Management', 'Email Marketing'] },
     ],
-    soft: ['Problem Solving', 'Communication', 'Teamwork', 'Time Management'],
+    soft: ['Communication', 'Teamwork', 'Problem Solving', 'Time Management'],
     languages: [
       { language: 'English', proficiency: 'native' },
       { language: 'Spanish', proficiency: 'intermediate' },
     ],
   },
-  professionalSummary: 'Motivated Computer Science graduate from UC Berkeley with hands-on internship experience at Google. Passionate about building scalable web applications and leveraging AI to solve real-world problems. Seeking a software engineering role where I can contribute to impactful products from day one.',
-  certifications: 'AWS Certified Cloud Practitioner (2023)\nGoogle Professional Data Engineer (2024)',
-  extracurriculars: 'President, Berkeley Coding Club (2022–2024) — grew membership from 30 to 120 students\nVolunteer Coding Instructor, Code.org — taught web development to 50+ high school students',
+  professionalSummary: 'Motivated Business Administration graduate with hands-on internship experience in marketing and brand communications. Skilled in campaign planning, social media management, and data-driven reporting. Eager to bring creativity and analytical thinking to a dynamic marketing team.',
+  certifications: 'Google Analytics Certified (2023)\nHubSpot Inbound Marketing Certification (2024)',
+  extracurriculars: 'President, Marketing Association (2022–2024) — organised 12 industry speaker events with 200+ attendees\nVolunteer, Local Food Bank — coordinated weekly distribution for 150+ families',
 };
 
 const initialFormData: ResumeFormData = {
@@ -295,8 +292,6 @@ export default function ResumeBuilderPage() {
         if (!formData.city.trim()) errors.push('City is required');
         if (!formData.country.trim()) errors.push('Country is required');
         if (!formData.targetRole.trim()) errors.push('Target Role is required');
-        if (!formData.targetIndustry.trim()) errors.push('Target Industry is required');
-        if (!formData.targetCountry.trim()) errors.push('Target Country is required');
         break;
 
       case 1:
@@ -307,7 +302,6 @@ export default function ResumeBuilderPage() {
           if (!firstEdu.degreeType.trim()) errors.push('Degree Type is required');
           if (!firstEdu.major.trim()) errors.push('Major/Field of Study is required');
           if (!firstEdu.university.trim()) errors.push('University is required');
-          if (!firstEdu.graduationDate.trim()) errors.push('Graduation Date is required');
         }
         break;
 
@@ -556,18 +550,20 @@ export default function ResumeBuilderPage() {
                     )}
                   </button>
 
-                  {/* Demo Data */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(DEMO_FORM_DATA);
-                      setCompletedSteps(new Set([0, 1, 2, 3, 4, 5]));
-                    }}
-                    className="flex items-center gap-1.5 rounded-md border border-dashed border-muted-foreground/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    title="Fill with demo data"
-                  >
-                    <Wand2 className="h-3.5 w-3.5" /> Demo
-                  </button>
+                  {false && (
+                    /* Demo Data */
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData(DEMO_FORM_DATA);
+                        setCompletedSteps(new Set([0, 1, 2, 3, 4, 5]));
+                      }}
+                      className="flex items-center gap-1.5 rounded-md border border-dashed border-muted-foreground/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      title="Fill with demo data"
+                    >
+                      <Wand2 className="h-3.5 w-3.5" /> Demo
+                    </button>
+                  )}
 
                   {/* Save Draft */}
                   <button
@@ -895,7 +891,7 @@ export default function ResumeBuilderPage() {
           className="flex-1 pt-16 sm:pt-20 relative z-10 overflow-hidden"
         >
           <ResumePreview
-            data={debouncedFormData}
+            data={completedSteps.has(3) || currentStep >= 3 ? debouncedFormData : { ...debouncedFormData, skills: { technical: [], soft: [], languages: [] } }}
             templateId={selectedTemplate}
             onChooseTemplate={() => setShowTemplateSwitcher(true)}
             currentTemplateName={currentTemplateName}

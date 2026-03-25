@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
+import passport from 'passport';
 import {
   register,
   login,
@@ -10,7 +11,7 @@ import {
   forgotPassword,
   resetPassword,
 } from '../../controllers/authController';
-import { isAuthenticated } from '../../middleware/auth';
+import { isAuthenticated, isGuest } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 
 const router = Router();
@@ -72,6 +73,29 @@ router.post(
   ],
   validate,
   resetPassword
+);
+
+// Google OAuth
+router.get('/google', isGuest, passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth` }),
+  (req, res) => {
+    // Regenerate session to prevent session fixation
+    const user = req.user;
+    req.session.regenerate((err) => {
+      if (err) {
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth`);
+      }
+      req.login(user as Express.User, (loginErr) => {
+        if (loginErr) {
+          return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth`);
+        }
+        res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard`);
+      });
+    });
+  }
 );
 
 export default router;

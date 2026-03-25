@@ -116,14 +116,17 @@ export default function EducationStep({ data, onChange }: Props) {
                   Field of Study <span className="text-destructive">*</span>
                 </Label>
                 <Input
-                  placeholder="e.g. Computer Science"
+                  placeholder="e.g. Business Administration"
                   value={edu.major}
                   onChange={(e) => updateEntry(index, 'major', e.target.value)}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label>Graduation Date</Label>
+                <Label className="flex justify-between">
+                  <span>Graduation Date</span>
+                  <span className="text-xs text-muted-foreground font-normal">Optional</span>
+                </Label>
                 <div className="relative">
                   <input
                     type="month"
@@ -170,7 +173,7 @@ export default function EducationStep({ data, onChange }: Props) {
               <RichTextEditor
                 value={edu.relevantCoursework}
                 onChange={(val) => updateEntry(index, 'relevantCoursework', val)}
-                placeholder="e.g. Data Structures, Algorithms, Dean's List..."
+                placeholder="e.g. Business Strategy, Financial Accounting, Marketing..."
                 minHeight="80px"
               />
             </div>

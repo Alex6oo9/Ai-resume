@@ -139,7 +139,7 @@ export default function ExperienceStep({ data, onChange }: Props) {
                   Job Title <span className="text-destructive">*</span>
                 </Label>
                 <Input
-                  placeholder="e.g. Senior Software Engineer"
+                  placeholder="e.g. Project Manager"
                   value={exp.role}
                   onChange={(e) => updateEntry(index, 'role', e.target.value)}
                 />
