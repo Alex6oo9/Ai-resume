@@ -1,19 +1,26 @@
-import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium-min';
+import puppeteer from 'puppeteer-core';
+
+const CHROMIUM_URL =
+  'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar';
 
 export async function generatePdf(
   html: string,
   opts: { margins?: boolean } = {}
 ): Promise<Buffer> {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  const executablePath = isProduction
+    ? await chromium.executablePath(CHROMIUM_URL)
+    : (process.env.PUPPETEER_EXECUTABLE_PATH ?? await chromium.executablePath(CHROMIUM_URL));
+
   const browser = await puppeteer.launch({
+    args: isProduction
+      ? chromium.args
+      : ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    defaultViewport: null,
+    executablePath,
     headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
-    ],
   });
 
   try {
