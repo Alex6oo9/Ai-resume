@@ -13,7 +13,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
-import path from 'path';
 import passport from './config/passport';
 import pool from './config/db';
 import { errorHandler } from './middleware/errorHandler';
@@ -154,16 +153,5 @@ app.get('/api/health', async (_req, res) => {
 
 // Error handler (must be last)
 app.use(errorHandler);
-
-// Production: serve React client bundle and SPA fallback
-// Must come AFTER error handler so API 404s are not swallowed
-if (process.env.NODE_ENV === 'production') {
-  const clientDist = path.join(__dirname, '../../client/dist');
-  app.use(express.static(clientDist));
-  // SPA fallback — all non-API routes serve index.html
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
-  });
-}
 
 export default app;
