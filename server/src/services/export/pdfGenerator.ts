@@ -1,6 +1,3 @@
-import chromium from '@sparticuz/chromium-min';
-import puppeteer from 'puppeteer-core';
-
 const CHROMIUM_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar';
 
@@ -8,6 +5,9 @@ export async function generatePdf(
   html: string,
   opts: { margins?: boolean } = {}
 ): Promise<Buffer> {
+  const { default: chromium } = await import('@sparticuz/chromium-min');
+  const { default: puppeteer } = await import('puppeteer-core');
+
   const isProduction = process.env.NODE_ENV === 'production';
 
   const executablePath = isProduction
