@@ -304,6 +304,7 @@ export async function parseResumeText(file: File): Promise<{ parsedText: string 
   formData.append('file', file);
   const response = await api.post('/resume/parse-text', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
   });
   return response.data;
 }

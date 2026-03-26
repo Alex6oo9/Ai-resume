@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -8,6 +8,17 @@ import path from 'path';
 import passport from './config/passport';
 import pool from './config/db';
 import { errorHandler } from './middleware/errorHandler';
+
+function routeTimeout(ms: number) {
+  return (_req: Request, res: Response, next: NextFunction) => {
+    const timer = setTimeout(() => {
+      if (!res.headersSent) res.status(503).json({ error: 'Request timed out' });
+    }, ms);
+    res.on('finish', () => clearTimeout(timer));
+    res.on('close', () => clearTimeout(timer));
+    next();
+  };
+}
 
 import authRoutes from './routes/auth';
 import resumeRoutes from './routes/resume';
@@ -92,6 +103,16 @@ const forgotPasswordLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Per-route timeouts (before rate limiters and handlers)
+app.use('/api/analysis', routeTimeout(90000));
+app.use('/api/ai', routeTimeout(90000));
+app.use('/api/export', routeTimeout(90000));
+app.use('/api/cover-letter', routeTimeout(90000));
+app.use('/api/resume/upload-simple', routeTimeout(90000));
+app.use('/api/resume/upload', routeTimeout(90000));
+app.use('/api/resume/parse-text', routeTimeout(60000));
+app.use('/api', routeTimeout(30000));
 
 // Routes
 app.use('/api/auth/login', authLimiter);

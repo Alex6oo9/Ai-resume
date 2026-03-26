@@ -84,12 +84,16 @@ export const extractKeywords = async (
       if (!text && resume.file_path) {
         try {
           const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
-            https.get(resume.file_path, (res) => {
+            const req = https.get(resume.file_path, (res) => {
               const chunks: Buffer[] = [];
               res.on('data', (chunk) => chunks.push(chunk));
               res.on('end', () => resolve(Buffer.concat(chunks)));
               res.on('error', reject);
             }).on('error', reject);
+            req.setTimeout(30000, () => {
+              req.destroy();
+              reject(new Error('Cloudinary download timeout'));
+            });
           });
           text = await extractTextFromPDF(pdfBuffer);
           if (text) {

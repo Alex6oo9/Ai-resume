@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: ai-resume-api
+    env: node
+    buildCommand: cd client && npm install && npm run build && cd ../server && npm install && npm run build
+    startCommand: node server/dist/migrations/run.js && node server/dist/index.js
+    healthCheckPath: /api/health

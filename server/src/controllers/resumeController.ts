@@ -46,6 +46,10 @@ export const uploadResume = async (
       ? sanitizePromptInput(jobDescription)
       : null;
 
+    // Derive title from original filename (strip extension)
+    const rawName = req.file.originalname ?? '';
+    const title = rawName.replace(/\.[^/.]+$/, '').trim() || null;
+
     const uniqueName = `${crypto.randomUUID()}-${Date.now()}`;
 
     // Upload to Cloudinary + extract text in parallel
@@ -76,8 +80,8 @@ export const uploadResume = async (
 
     // Insert into database
     const result = await pool.query(
-      `INSERT INTO resumes (user_id, file_path, parsed_text, target_role, target_country, target_city, match_percentage, ai_analysis, job_description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO resumes (user_id, file_path, parsed_text, target_role, target_country, target_city, match_percentage, ai_analysis, job_description, title)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         userId,
@@ -89,6 +93,7 @@ export const uploadResume = async (
         matchPercentage,
         JSON.stringify(aiAnalysis),
         sanitizedJd,
+        title,
       ]
     );
 
@@ -272,7 +277,7 @@ export const listResumes = async (
     const userId = (req.user as any).id;
 
     const result = await pool.query(
-      'SELECT id, target_role, target_country, target_city, match_percentage, ats_score, created_at, file_path, template_id FROM resumes WHERE user_id = $1 ORDER BY created_at DESC',
+      'SELECT id, title, target_role, target_country, target_city, match_percentage, ats_score, created_at, file_path, template_id FROM resumes WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
 
@@ -514,12 +519,16 @@ export const uploadResumeSimple = async (
     const userId = (req.user as any).id;
     const uniqueName = `${crypto.randomUUID()}-${Date.now()}`;
 
+    // Derive title from original filename (strip extension)
+    const rawName = req.file.originalname ?? '';
+    const title = rawName.replace(/\.[^/.]+$/, '').trim() || null;
+
     // Upload to Cloudinary only — text extraction happens lazily at generation time
     const cloudinaryUrl = await uploadPdfToCloudinary(req.file.buffer, uniqueName);
 
     const result = await pool.query(
-      `INSERT INTO resumes (user_id, file_path) VALUES ($1, $2) RETURNING *`,
-      [userId, cloudinaryUrl]
+      `INSERT INTO resumes (user_id, file_path, title) VALUES ($1, $2, $3) RETURNING *`,
+      [userId, cloudinaryUrl, title]
     );
 
     res.status(201).json({ resume: result.rows[0] });
