@@ -479,10 +479,11 @@ Current test suites:
 
 ## Build Output
 - `client/dist/` — static files with hashed filenames
-- In production, the server serves this directory via `express.static` and sends `index.html` for all non-API routes (SPA fallback)
+- Deployed to **Vercel** (Root Directory: `client`, Output Directory: `dist`). A `client/vercel.json` provides SPA rewrites so all routes serve `index.html`.
 
 ## Production Notes
-- Set `NODE_ENV=production` on the server — enables static file serving of `client/dist/`
-- Server serves client bundle from `server/dist/../../client/dist` (resolved relative to `server/dist/app.js`)
-- API routes (`/api/*`) are handled first; only non-API routes fall through to SPA fallback
-- Cookie `secure: true` is set in production — requires HTTPS
+- Frontend deployed to **Vercel**: Root Directory = `client`, Build Command = `npm run build`, Output Directory = `dist`
+- `client/vercel.json` rewrites all routes to `index.html` for React Router SPA navigation
+- Backend deployed to **Render** (API only — no static file serving)
+- The Vite dev proxy (`/api/*` → `http://localhost:5000`) handles local development; in production the frontend calls the Render backend URL directly — set `VITE_API_URL` or configure a Vercel rewrite to proxy `/api/*` to the Render service
+- Cookie `secure: true` is set on the backend in production — requires HTTPS (both Vercel and Render provide this automatically)

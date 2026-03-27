@@ -677,13 +677,31 @@ GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 
 ## Production Deployment
 
-In production (`NODE_ENV=production`), the server also serves the React SPA:
-- `express.static(client/dist)` serves hashed asset files
-- `GET *` fallback sends `client/dist/index.html` for all non-API routes
-- All API routes (`/api/*`) are matched first — the SPA fallback only activates for non-API paths
-- `client/dist/` is expected at `../../client/dist` relative to `server/dist/app.js`
+The server is deployed to **Render** as an API-only service. It does NOT serve the React frontend (frontend is on Vercel).
 
-Start command: `NODE_ENV=production node server/dist/app.js`
+**Render service config (`render.yaml` + `server/render-build.sh`):**
+- Root Directory: `server`
+- Build Command: `./render-build.sh` → runs `npm install && npm run build` (compiles TypeScript to `dist/`)
+- Start Command: `node dist/migrations/run.js && node dist/index.js`
+  - `dist/migrations/run.js` — runs all pending DB migrations (idempotent, skips already-run ones), exits 0
+  - `dist/index.js` — starts Express server on `process.env.PORT`
+
+**Environment variables required on Render:**
+- `DATABASE_URL` — Neon PostgreSQL connection string (include `sslmode=require`)
+- `SESSION_SECRET` — random secret for express-session
+- `OPENAI_API_KEY` — OpenAI API key
+- `CLIENT_URL` — Vercel frontend URL (used for CORS `origin`)
+- `NODE_ENV=production`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` — for Google OAuth
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` — for PDF/file storage
+- `RESEND_API_KEY`, `FROM_EMAIL` — for transactional email
+
+**Health check:** `GET /api/health` — used by Render to verify the service is up.
+
+**Notes:**
+- Static file serving (`express.static`) has been removed from `app.ts` — frontend is on Vercel
+- Migrations run automatically at each deploy via the start command chain
+- `@sparticuz/chromium-min` and `puppeteer-core` are lazy-loaded inside `generatePdf()` (not at module load time) to prevent startup crashes on Render
 
 ---
 
