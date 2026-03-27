@@ -38,6 +38,9 @@ import coverLetterRoutes from './routes/coverLetter';
 
 const app = express();
 
+// Trust the first proxy hop (required on Render so secure cookies work over HTTPS)
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
@@ -56,6 +59,8 @@ app.use(
 // Session store
 const PgSession = connectPgSimple(session);
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(
   session({
     store: new PgSession({
@@ -67,10 +72,11 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax',
+      domain: isProduction ? '.proresumeai.app' : undefined,
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     },
   })
 );
