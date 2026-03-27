@@ -113,7 +113,11 @@ export default function SkillsStep({
   };
 
   const removeCategory = (catIndex: number) => {
-    if (categories.length <= 1) return;
+    if (categories.length <= 1) {
+      // Reset the last category to empty instead of removing it
+      onChange({ ...data, skills: { ...data.skills, technical: [{ category: '', items: [] }] } });
+      return;
+    }
     onChange({
       ...data,
       skills: { ...data.skills, technical: categories.filter((_, i) => i !== catIndex) },
@@ -247,18 +251,16 @@ export default function SkillsStep({
                     </span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
-                    {categories.length > 1 && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); removeCategory(catIndex); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeCategory(catIndex); } }}
-                        className="h-8 w-8 rounded-md inline-flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
-                        aria-label="Delete category"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </span>
-                    )}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); removeCategory(catIndex); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeCategory(catIndex); } }}
+                      className="h-8 w-8 rounded-md inline-flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
+                      aria-label="Delete category"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
@@ -489,8 +491,8 @@ export default function SkillsStep({
             </div>
           )}
 
-          <div className="flex gap-2 items-center mt-2 p-3 rounded-xl border border-dashed border-border bg-muted/20 hover:border-primary/40 transition-colors">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap gap-2 items-center mt-2 p-3 rounded-xl border border-dashed border-border bg-muted/20 hover:border-primary/40 transition-colors">
+            <div className="relative flex-1 min-w-[140px]">
               <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
                 className="pl-9 bg-background"
@@ -509,7 +511,7 @@ export default function SkillsStep({
               value={langProficiency}
               onValueChange={(val) => setLangProficiency(val as LanguageSkill['proficiency'])}
             >
-              <SelectTrigger className="w-[130px] shrink-0 bg-background">
+              <SelectTrigger className="w-[110px] sm:w-[130px] shrink-0 bg-background">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

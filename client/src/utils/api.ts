@@ -7,7 +7,7 @@ import type { Template, SubscriptionTier } from '../types/template.types';
 import type { ResumeFormData, GenerateCoverLetterPayload } from '../types';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${import.meta.env.VITE_API_URL || ''}/api`,
   withCredentials: true,
   timeout: 10000,
   headers: {
