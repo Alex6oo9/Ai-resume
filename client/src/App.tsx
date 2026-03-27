@@ -11,7 +11,6 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
-import ResumeUploadPage from './pages/ResumeUploadPage';
 import ResumeBuilderPage from './pages/ResumeBuilderPage';
 import ResumeAnalysisPage from './pages/ResumeAnalysisPage';
 import UploadedResumeViewPage from './pages/UploadedResumeViewPage';

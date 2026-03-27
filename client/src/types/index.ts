@@ -137,6 +137,7 @@ export interface DetailedImprovements {
 
 export interface ResumeSummary {
   id: string;
+  title: string | null;
   target_role: string | null;
   target_country: string | null;
   target_city: string | null;
