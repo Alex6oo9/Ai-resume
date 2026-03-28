@@ -204,6 +204,14 @@ export default function ResumeBuilderPage() {
     canZoomIn, canZoomOut, containerRef,
   } = usePreviewZoom();
 
+  // Fit preview to width after left panel close transition (400ms)
+  useEffect(() => {
+    if (!isLeftPanelOpen) {
+      const timer = setTimeout(fitToWidth, 420);
+      return () => clearTimeout(timer);
+    }
+  }, [isLeftPanelOpen, fitToWidth]);
+
   // Load template selection from localStorage on mount
   useEffect(() => {
     const savedTemplate = localStorage.getItem('resumeBuilder_selectedTemplate');

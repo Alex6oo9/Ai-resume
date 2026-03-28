@@ -94,11 +94,6 @@ export const generateSummaryEndpoint = async (
       return;
     }
 
-    if (!targetCountry || typeof targetCountry !== 'string') {
-      res.status(400).json({ error: 'Target country is required and must be a string' });
-      return;
-    }
-
     // Generate summary
     const summary = await generateSummary({
       targetRole: targetRole.trim(),
